@@ -687,7 +687,30 @@ function setupNet() { conn.on('data', d => { if (isHost && d.t === 'in') handleI
 function startMP(host) { isMultiplayer = true; isHost = host; if (host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
 function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money = CONFIG.startMoney; enemyMoney = CONFIG.startMoney; units=[]; projectiles=[]; missileVal=0; bases={p:2,e:2}; mushroomCloud=null; updateHP(); SFX.init(); gameActive = true; }
 function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive = true; SFX.init(); }
-function buyUnit(k, p) { if (!gameActive || isPaused) return; const d = DB[k], funds = p===1?money:enemyMoney; if (funds >= d.cost) { const rStart = p===1 ? CONFIG.gridRows-1 : 0, rEnd = p===1 ? CONFIG.gridRows-2 : 1; for (let r of [rStart, rEnd]) { for (let c=0; c<CONFIG.gridCols; c++) { if (!units.some(u => Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u = new Unit(k, p, c, r); units.push(u); if (p === myPlayerId) { selectedUnit = u; spawnFlash=10; } return; } } } if (placed) break; } if (!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), spawnRows[0], 10, 'red'); } }
+function buyUnit(k, p) {
+    if (!gameActive || isPaused) return;
+    const d = DB[k], funds = p===1?money:enemyMoney;
+    if (funds >= d.cost) {
+        const rStart = p===1 ? CONFIG.gridRows-1 : 0, rEnd = p===1 ? CONFIG.gridRows-2 : 1;
+        let placed = false;
+        for (let r of [rStart, rEnd]) {
+            for (let c=0; c<CONFIG.gridCols; c++) {
+                if (!units.some(u => Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) {
+                    if(p===1) money-=d.cost; else enemyMoney-=d.cost;
+                    const u = new Unit(k, p, c, r);
+                    units.push(u);
+                    if (p === myPlayerId) { selectedUnit = u; spawnFlash=10; }
+                    placed = true;
+                    break;
+                }
+            }
+            if (placed) break;
+        }
+        if (!placed && p===myPlayerId) {
+            addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'red');
+        }
+    }
+}
 function handleInput(e, _, nx, ny, netPlayer) { if (e) { e.preventDefault(); const r = canvas.getBoundingClientRect(); const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left; const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top; nx = Math.floor((x - CONFIG.gridOffsetX)/CONFIG.tileSize); ny = Math.floor((y - CONFIG.gridOffsetY)/CONFIG.tileSize); } if (isMultiplayer && !isHost && !netPlayer) { conn.send({t:'in', x:nx, y:ny}); return; } const p = netPlayer || myPlayerId; if (nx >= 0 && nx < CONFIG.gridCols && ny >= 0 && ny < CONFIG.gridRows) { const clicked = units.find(u => Math.hypot(u.x-nx, u.y-ny) < 0.8); if (clicked && clicked.owner === p) { selectedUnit = clicked; return; } if (selectedUnit && selectedUnit.owner === p) { if (clicked && clicked.owner !== p) selectedUnit.setPath(nx, ny); else if ((GRID[ny][nx] !== 1 || selectedUnit.type === 'air')) selectedUnit.setPath(nx, ny); } } }
 function updateHP() { document.getElementById('player-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<bases.p?'active-allied':''}"></div>`).join(''); document.getElementById('enemy-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<bases.e?'active-brothers':''}"></div>`).join(''); }
 function togglePause() { isPaused = !isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
