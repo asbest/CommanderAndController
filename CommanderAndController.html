@@ -543,26 +543,6 @@ function loop(ts) {
                         return true;
                     }
 
-                        return true;
-                    }
-
-                    if (p.t === 'bullet') {
-                        if (!targetAlive) return false;
-                        const tx = p.tar.vx, ty = p.tar.vy;
-                        const d = Math.hypot(tx - p.x, ty - p.y);
-
-                        if (d < p.s) {
-                            p.tar.takeDamage(p.dmg);
-                            particles.push({ x: p.x, y: p.y, l: 15, c: '#fa0' });
-                            return false;
-                        }
-
-                        p.x += (tx - p.x) / d * p.s;
-                        p.y += (ty - p.y) / d * p.s;
-                        p.angle = Math.atan2(ty - p.y, tx - p.x);
-                        return true;
-                    }
-
                     // Fallback for old visual bullets if any, though they should be gone
                     if (p.l) { p.l--; return p.l > 0; }
                     return false;
@@ -593,9 +573,6 @@ function loop(ts) {
                 }
             }
 
-            }
-            if (bases.p <= 0) endGame('DEFEAT');
-            else if (bases.e <= 0) endGame('VICTORY');
             if (spawnFlash > 0) spawnFlash--;
             
             const myFunds = myPlayerId === 1 ? money : enemyMoney;
