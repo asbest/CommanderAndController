@@ -426,25 +426,16 @@ class Unit {
         this.recoil = 5; 
         this.attackAngle = Math.atan2(t.y - this.y, t.x - this.x);
         let m = this.mods[t.type]||1;
+
+        const projSpeed = 0.08;
+
         if (this.proj === 'missile') {
             SFX.launch();
-            addParticles(this.vx, this.vy, 10, '#ffcc00');
+            addParticles(this.vx, this.vy, 3, '#fff'); // Smoke puff
             projectiles.push({t:'missile', x:this.vx, y:this.vy, tar:t, tx:t.vx, ty:t.vy, dmg:this.dmg*m, o:this.owner, s:0.04, c:this.owner===1?'#ff0':'#fa0'});
         } else {
             if (this.key==='tank') SFX.tank(); else SFX.shoot(); 
-            projectiles.push({
-                t: 'bullet',
-                x: this.vx + Math.cos(this.attackAngle) * 0.4,
-                y: this.vy + Math.sin(this.attackAngle) * 0.4,
-                tar: t,
-                tx: t.vx,
-                ty: t.vy,
-                dmg: this.dmg * m,
-                o: this.owner,
-                s: 0.1, // Speed for bullets
-                c: this.owner === 1 ? '#0f0' : '#f00'
-            });
-            particles.push({x:this.vx + Math.cos(this.attackAngle)*0.4, y:this.vy + Math.sin(this.attackAngle)*0.4, l:5, c:'#ff0', size:0.2});
+            projectiles.push({t:'bullet', x:this.vx, y:this.vy, tar:t, dmg:this.dmg*m, o:this.owner, s: projSpeed, c:this.owner===1?'#0f0':'#f00'});
         }
     }
     takeDamage(a) { 
@@ -507,18 +498,6 @@ function loop(ts) {
                 // Updates
                 units.forEach(u => u.update());
                 projectiles = projectiles.filter(p => {
-                    if (p.t === 'bullet') {
-                        if (p.tar && units.includes(p.tar)) { p.tx = p.tar.vx; p.ty = p.tar.vy; }
-                        const d = Math.hypot(p.tx - p.x, p.ty - p.y);
-                        if (d < p.s) {
-                            if (p.tar && units.includes(p.tar)) p.tar.takeDamage(p.dmg);
-                            addParticles(p.x, p.y, 2, p.c);
-                            return false;
-                        }
-                        p.x += (p.tx - p.x) / d * p.s;
-                        p.y += (p.ty - p.y) / d * p.s;
-                        return true;
-                    }
                     if (p.t === 'nuke') {
                         const d = Math.hypot(p.tx-p.x, p.ty-p.y);
                         if (d < p.s) { SFX.nuke(); mushroomCloud=new MushroomCloud(p.tx, p.ty); if(p.o===1) bases.e--; else bases.p--; updateHP(); return false; }
@@ -526,15 +505,39 @@ function loop(ts) {
                         if(Math.random()>0.1) particles.push({x:p.x, y:p.y, l:30, c:'#ff0'});
                         return true;
                     }
+
+                    const targetAlive = p.tar && units.includes(p.tar);
+
                     if (p.t === 'missile') {
-                        if(p.tar && units.includes(p.tar)) { p.tx=p.tar.vx; p.ty=p.tar.vy; }
-                        const d = Math.hypot(p.tx-p.x, p.ty-p.y);
-                        if (d < p.s) { if(p.tar && units.includes(p.tar)) p.tar.takeDamage(p.dmg); SFX.explode(); addParticles(p.x, p.y, 6, 'orange'); return false; }
-                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s;
-                        p.angle = Math.atan2(p.ty - p.y, p.tx - p.x); // Store angle
-                        if(Math.random()>0.3) particles.push({x:p.x, y:p.y, l:10, c:'#aaa', size:0.1});
+                        if (targetAlive) { p.tx = p.tar.vx; p.ty = p.tar.vy; }
+                        const d = Math.hypot(p.tx - p.x, p.ty - p.y);
+                        if (d < p.s) { if(targetAlive) p.tar.takeDamage(p.dmg); SFX.explode(); addParticles(p.x, p.y, 6, 'orange'); return false; }
+                        p.x += (p.tx - p.x) / d * p.s; p.y += (p.ty - p.y) / d * p.s;
+                        p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+                        if (Math.random() > 0.3) particles.push({ x: p.x, y: p.y, l: 10, c: '#aaa', size: 0.1 });
                         return true;
                     }
+
+                    if (p.t === 'bullet') {
+                        if (!targetAlive) return false;
+                        const tx = p.tar.vx, ty = p.tar.vy;
+                        const d = Math.hypot(tx - p.x, ty - p.y);
+
+                        if (d < p.s) {
+                            p.tar.takeDamage(p.dmg);
+                            particles.push({ x: p.x, y: p.y, l: 15, c: '#fa0' });
+                            return false;
+                        }
+
+                        p.x += (tx - p.x) / d * p.s;
+                        p.y += (ty - p.y) / d * p.s;
+                        p.angle = Math.atan2(ty - p.y, tx - p.x);
+                        return true;
+                    }
+
+                    // Fallback for old visual bullets if any, though they should be gone
+                    if (p.l) { p.l--; return p.l > 0; }
+                    return false;
                 });
 
                 if (isMultiplayer && conn) {
@@ -549,11 +552,10 @@ function loop(ts) {
             particles = particles.filter(p => { p.l--; return p.l>0; });
             if (mushroomCloud) {
                 mushroomCloud.update();
-                if (mushroomCloud.life <= 0) {
-                    if (bases.p <= 0) endGame('DEFEAT'); else if (bases.e <= 0) endGame('VICTORY');
-                    mushroomCloud = null;
-                }
+                if (mushroomCloud.life <= 0) mushroomCloud = null;
             }
+            if (bases.p <= 0) endGame('DEFEAT');
+            else if (bases.e <= 0) endGame('VICTORY');
             if (spawnFlash > 0) spawnFlash--;
             
             const myFunds = myPlayerId === 1 ? money : enemyMoney;
@@ -607,38 +609,33 @@ function draw() {
         const dy = cy + ry;
         
         if (selectedUnit === u) {
-            ctx.strokeStyle = '#fff';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(dx, dy, r+5, 0, Math.PI*2);
-            ctx.stroke();
-
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(dx, dy, r+5, 0, Math.PI*2); ctx.stroke();
             if (u.path && u.path.length > 0) {
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.lineWidth = 3;
-                ctx.lineCap = 'round';
                 ctx.beginPath();
                 ctx.moveTo(u.vx * ts + ts / 2, u.vy * ts + ts / 2);
-                for (const p of u.path) {
-                    ctx.lineTo(p.x * ts + ts / 2, p.y * ts + ts / 2);
-                }
+                u.path.forEach(p => ctx.lineTo(p.x * ts + ts / 2, p.y * ts + ts / 2));
                 ctx.stroke();
 
-                const lastPoint = u.path[u.path.length - 1];
-                const secondLastPoint = u.path.length > 1 ? u.path[u.path.length - 2] : { x: u.vx, y: u.vy };
+                // Draw arrow head
+                const lastPoint = u.path[u.path.length-1];
+                const secondLastPoint = u.path.length > 1 ? u.path[u.path.length - 2] : {x: u.vx, y: u.vy};
+                const angle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
+                const arrowX = lastPoint.x * ts + ts / 2;
+                const arrowY = lastPoint.y * ts + ts / 2;
 
-                const arrowAngle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
-                const arrowSize = ts * 0.3;
-                const tipX = lastPoint.x * ts + ts / 2;
-                const tipY = lastPoint.y * ts + ts / 2;
-
+                ctx.save();
+                ctx.translate(arrowX, arrowY);
+                ctx.rotate(angle);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.beginPath();
-                ctx.moveTo(tipX, tipY);
-                ctx.lineTo(tipX - arrowSize * Math.cos(arrowAngle - Math.PI / 6), tipY - arrowSize * Math.sin(arrowAngle - Math.PI / 6));
-                ctx.lineTo(tipX - arrowSize * Math.cos(arrowAngle + Math.PI / 6), tipY - arrowSize * Math.sin(arrowAngle + Math.PI / 6));
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-10, -5);
+                ctx.lineTo(-10, 5);
                 ctx.closePath();
                 ctx.fill();
+                ctx.restore();
             }
         }
         ctx.fillStyle = u.owner===1 ? CONFIG.colors.p : CONFIG.colors.e;
@@ -679,9 +676,9 @@ function draw() {
             ctx.fillStyle = '#000'; ctx.font = `bold ${ts*0.2}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('☢', 0, 0);
             ctx.restore();
         }
-        else if (p.t==='missile') {
+        else if (p.t === 'missile') {
             ctx.save(); ctx.translate(x, y); 
-            let angle = p.angle !== undefined ? p.angle : Math.atan2(p.ty-p.y, p.tx-p.x);
+            let angle = p.angle !== undefined ? p.angle : 0;
             ctx.rotate(angle + Math.PI/2); 
             ctx.fillStyle = `rgba(255, ${100+Math.random()*155}, 0, 0.8)`;
             ctx.beginPath(); ctx.moveTo(-ts*0.03, 0); ctx.lineTo(0, ts*0.15 + Math.random()*ts*0.1); ctx.lineTo(ts*0.03, 0); ctx.fill();
@@ -690,8 +687,12 @@ function draw() {
             ctx.restore();
         }
         else if (p.t === 'bullet') {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(p.angle);
             ctx.fillStyle = p.c || '#fff';
-            ctx.fillRect(x - ts * 0.05, y - ts * 0.05, ts * 0.1, ts * 0.1);
+            ctx.fillRect(-ts*0.1, -ts*0.02, ts*0.2, ts*0.04);
+            ctx.restore();
         }
     });
 
@@ -776,6 +777,12 @@ function handleInput(e, _, nx, ny, netPlayer) { if (e) { e.preventDefault(); con
 function updateHP() { document.getElementById('player-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<bases.p?'active-allied':''}"></div>`).join(''); document.getElementById('enemy-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<bases.e?'active-brothers':''}"></div>`).join(''); }
 function togglePause() { isPaused = !isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
 function addParticles(x, y, count, color) { for(let i=0; i<count; i++) { particles.push({ x:x+(Math.random()-0.5), y:y+(Math.random()-0.5), life:15, c:color }); } }
+function endGame(outcome) {
+    if (!gameActive) return;
+    gameActive = false;
+    document.getElementById('end-title').innerText = outcome;
+    document.getElementById('modal-end').classList.remove('hidden');
+}
 
 canvas = document.getElementById('gameCanvas'); ctx = canvas.getContext('2d');
 window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; const t = Math.min(canvas.width/CONFIG.gridCols, canvas.height/CONFIG.gridRows); CONFIG.tileSize = Math.max(1, Math.floor(t)); CONFIG.gridOffsetX = (canvas.width - CONFIG.tileSize*CONFIG.gridCols)/2; CONFIG.gridOffsetY = (canvas.height - CONFIG.tileSize*CONFIG.gridRows)/2; });
