@@ -465,6 +465,57 @@ class Unit {
     }
 }
 
+function isBaseUnderAttack(playerId) {
+    const DEFENSE_RADIUS = 6;
+    const baseCoord = baseCoordinates[playerId];
+    if (!baseCoord) return false;
+
+    for (const unit of units) {
+        if (unit.owner !== playerId) {
+            const distance = Math.hypot(baseCoord.x - unit.x, baseCoord.y - unit.y);
+            if (distance <= DEFENSE_RADIUS) {
+                return true; // Found a threat
+            }
+        }
+    }
+    return false;
+}
+
+function findUnoccupiedMissilePlatform() {
+    for(let r=0; r<CONFIG.gridRows; r++) {
+        for(let c=0; c<CONFIG.gridCols; c++) {
+            if (GRID[r][c] === 3) { // Is a missile platform tile
+                const isOccupied = units.some(u => Math.round(u.x) === c && Math.round(u.y) === r);
+                if (!isOccupied) {
+                    return { x: c, y: r }; // Found one
+                }
+            }
+        }
+    }
+    return null; // All platforms are occupied or non-existent
+}
+
+function findBestCounter(enemyUnitType) {
+    if (!enemyUnitType) return null;
+
+    let bestCounter = null;
+    let maxDamage = 0;
+
+    for (const unitKey in DB) {
+        const unitData = DB[unitKey];
+        if (unitData.cost > 0) { // Exclude non-buildable units like harvesters
+            const damageModifier = unitData.mods[enemyUnitType] || 0;
+            const potentialDamage = unitData.dmg * damageModifier;
+
+            if (potentialDamage > maxDamage) {
+                maxDamage = potentialDamage;
+                bestCounter = unitKey;
+            }
+        }
+    }
+    return bestCounter;
+}
+
 // --- MAIN LOOP ---
 function loop(ts) {
     const dt = ts - lastFrameTime; lastFrameTime = ts;
@@ -481,23 +532,90 @@ function loop(ts) {
                     aiTick++;
                     if (aiTick % 30 === 0) { // Throttle AI
                         const aiFunds = aiPlayerId === 1 ? money : enemyMoney;
-                        if (aiFunds >= 120 && units.filter(u => u.owner === aiPlayerId).length < 10) {
-                            const keys = Object.keys(DB);
-                            const k = keys[Math.floor(Math.random() * keys.length)];
-                            buyUnit(k, aiPlayerId);
+
+                        // Defensive logic
+                        const baseIsAttacked = isBaseUnderAttack(aiPlayerId);
+                        if (baseIsAttacked) {
+                            const baseCoord = baseCoordinates[aiPlayerId];
+                            const availableDefenders = units.filter(u => {
+                                if (u.owner !== aiPlayerId || u.harvest) return false;
+                                if (u.path.length > 0) {
+                                    const lastPathPoint = u.path[u.path.length - 1];
+                                    if (lastPathPoint.x === baseCoord.x && lastPathPoint.y === baseCoord.y) {
+                                        return false; // Already defending
+                                    }
+                                }
+                                return true;
+                            });
+
+                            // Send up to 2 available units to defend
+                            for (let i = 0; i < Math.min(availableDefenders.length, 2); i++) {
+                                availableDefenders[i].setPath(baseCoord.x, baseCoord.y);
+                            }
                         }
-                        units.forEach(u => {
-                            if (u.owner === aiPlayerId && u.state === 'idle' && !u.harvest) {
-                                if (Math.random() < 0.2) {
-                                    // Move towards the center
-                                    u.setPath(Math.floor(CONFIG.gridCols / 2), Math.floor(CONFIG.gridRows / 2));
-                                } else {
-                                    // Move towards the enemy base
-                                    const enemyBaseCoords = baseCoordinates[u.owner * -1];
-                                    u.setPath(enemyBaseCoords.x, enemyBaseCoords.y);
+
+                        // Build logic (always active)
+                        if (units.filter(u => u.owner === aiPlayerId).length < 10) {
+                            const enemyUnits = units.filter(u => u.owner !== aiPlayerId);
+                            let unitToBuild = null;
+
+                            if (enemyUnits.length > 0) {
+                                // Find the most common enemy unit type to counter
+                                const enemyTypeCounts = {};
+                                enemyUnits.forEach(u => {
+                                    enemyTypeCounts[u.type] = (enemyTypeCounts[u.type] || 0) + 1;
+                                });
+                                const mostCommonEnemyType = Object.keys(enemyTypeCounts).reduce((a, b) => enemyTypeCounts[a] > enemyTypeCounts[b] ? a : b);
+
+                                unitToBuild = findBestCounter(mostCommonEnemyType);
+                            }
+
+                            // Fallback to random if no specific counter is found or affordable
+                            if (!unitToBuild || DB[unitToBuild].cost > aiFunds) {
+                                const availableUnits = Object.keys(DB).filter(k => DB[k].cost > 0 && DB[k].cost <= aiFunds);
+                                if (availableUnits.length > 0) {
+                                    unitToBuild = availableUnits[Math.floor(Math.random() * availableUnits.length)];
                                 }
                             }
-                        });
+
+                            if (unitToBuild && DB[unitToBuild].cost <= aiFunds) {
+                                buyUnit(unitToBuild, aiPlayerId);
+                            }
+                        }
+
+                        // Offensive & Capture logic (only if base is not under attack)
+                        if (!baseIsAttacked) {
+                            const unoccupiedPlatform = findUnoccupiedMissilePlatform();
+                            const idleUnits = units.filter(u => u.owner === aiPlayerId && u.state === 'idle' && !u.harvest);
+
+                            if (unoccupiedPlatform && idleUnits.length > 0) {
+                                // Send the closest idle unit to capture the platform
+                                let closestUnit = null;
+                                let minDistance = Infinity;
+                                for (const unit of idleUnits) {
+                                    const distance = Math.hypot(unit.x - unoccupiedPlatform.x, unit.y - unoccupiedPlatform.y);
+                                    if (distance < minDistance) {
+                                        minDistance = distance;
+                                        closestUnit = unit;
+                                    }
+                                }
+                                if (closestUnit) {
+                                    closestUnit.setPath(unoccupiedPlatform.x, unoccupiedPlatform.y);
+                                }
+                            } else {
+                                // Default offensive logic if no platforms to capture or no idle units
+                                units.forEach(u => {
+                                    if (u.owner === aiPlayerId && u.state === 'idle' && !u.harvest) {
+                                        if (Math.random() < 0.2) {
+                                            u.setPath(Math.floor(CONFIG.gridCols / 2), Math.floor(CONFIG.gridRows / 2));
+                                        } else {
+                                            const enemyBaseCoords = baseCoordinates[u.owner * -1];
+                                            u.setPath(enemyBaseCoords.x, enemyBaseCoords.y);
+                                        }
+                                    }
+                                });
+                            }
+                        }
                     }
                 }
 
