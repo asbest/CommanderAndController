@@ -426,12 +426,25 @@ class Unit {
         this.recoil = 5; 
         this.attackAngle = Math.atan2(t.y - this.y, t.x - this.x);
         let m = this.mods[t.type]||1;
-        if (this.proj === 'missile') { SFX.launch(); projectiles.push({t:'missile', x:this.vx, y:this.vy, tar:t, tx:t.vx, ty:t.vy, dmg:this.dmg*m, o:this.owner, s:0.04, c:this.owner===1?'#ff0':'#fa0'}); }
-        else { 
+        if (this.proj === 'missile') {
+            SFX.launch();
+            addParticles(this.vx, this.vy, 10, '#ffcc00');
+            projectiles.push({t:'missile', x:this.vx, y:this.vy, tar:t, tx:t.vx, ty:t.vy, dmg:this.dmg*m, o:this.owner, s:0.04, c:this.owner===1?'#ff0':'#fa0'});
+        } else {
             if (this.key==='tank') SFX.tank(); else SFX.shoot(); 
-            t.takeDamage(this.dmg*m); 
+            projectiles.push({
+                t: 'bullet',
+                x: this.vx + Math.cos(this.attackAngle) * 0.4,
+                y: this.vy + Math.sin(this.attackAngle) * 0.4,
+                tar: t,
+                tx: t.vx,
+                ty: t.vy,
+                dmg: this.dmg * m,
+                o: this.owner,
+                s: 0.1, // Speed for bullets
+                c: this.owner === 1 ? '#0f0' : '#f00'
+            });
             particles.push({x:this.vx + Math.cos(this.attackAngle)*0.4, y:this.vy + Math.sin(this.attackAngle)*0.4, l:5, c:'#ff0', size:0.2});
-            projectiles.push({t:'bullet', sx:this.vx, sy:this.vy, tx:t.vx, ty:t.vy, c:this.owner===1?'#0f0':'#f00', l:10}); 
         }
     }
     takeDamage(a) { 
@@ -494,7 +507,18 @@ function loop(ts) {
                 // Updates
                 units.forEach(u => u.update());
                 projectiles = projectiles.filter(p => {
-                    if (p.t === 'bullet') { p.l--; return p.l>0; }
+                    if (p.t === 'bullet') {
+                        if (p.tar && units.includes(p.tar)) { p.tx = p.tar.vx; p.ty = p.tar.vy; }
+                        const d = Math.hypot(p.tx - p.x, p.ty - p.y);
+                        if (d < p.s) {
+                            if (p.tar && units.includes(p.tar)) p.tar.takeDamage(p.dmg);
+                            addParticles(p.x, p.y, 2, p.c);
+                            return false;
+                        }
+                        p.x += (p.tx - p.x) / d * p.s;
+                        p.y += (p.ty - p.y) / d * p.s;
+                        return true;
+                    }
                     if (p.t === 'nuke') {
                         const d = Math.hypot(p.tx-p.x, p.ty-p.y);
                         if (d < p.s) { SFX.nuke(); mushroomCloud=new MushroomCloud(p.tx, p.ty); if(p.o===1) bases.e--; else bases.p--; updateHP(); return false; }
@@ -665,7 +689,10 @@ function draw() {
             ctx.fillStyle = '#f00'; ctx.beginPath(); ctx.moveTo(-ts*0.03, -ts*0.15); ctx.lineTo(0, -ts*0.22); ctx.lineTo(ts*0.03, -ts*0.15); ctx.fill();
             ctx.restore();
         }
-        else { ctx.strokeStyle=p.c||'#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(p.tx?p.tx*ts+ts/2:x, p.ty?p.ty*ts+ts/2:y); ctx.stroke(); }
+        else if (p.t === 'bullet') {
+            ctx.fillStyle = p.c || '#fff';
+            ctx.fillRect(x - ts * 0.05, y - ts * 0.05, ts * 0.1, ts * 0.1);
+        }
     });
 
     particles.forEach(p => {
