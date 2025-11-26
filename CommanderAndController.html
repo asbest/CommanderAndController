@@ -154,16 +154,16 @@
     <div id="ui-layer">
         <div class="top-bar pointer-enabled">
             <div class="hp-box">
-                <span class="hp-label" style="color:#ff4444">BROTHERS</span>
-                <div class="hp-pips" id="enemy-hp"><div class="pip active-brothers"></div><div class="pip active-brothers"></div></div>
+                <span class="hp-label" id="left-hp-label"></span>
+                <div class="hp-pips" id="left-hp"></div>
             </div>
             
             <div class="missile-timer"><div id="missile-fill"></div></div>
 
             <div style="display:flex; gap:15px; align-items:center;">
                 <div class="hp-box">
-                    <span class="hp-label" style="color:#00ff00">ALLIED</span>
-                    <div class="hp-pips" id="player-hp"><div class="pip active-allied"></div><div class="pip active-allied"></div></div>
+                    <span class="hp-label" id="right-hp-label"></span>
+                    <div class="hp-pips" id="right-hp"></div>
                 </div>
                 <button id="pause-btn" onclick="togglePause()">PAUSE</button>
             </div>
@@ -182,6 +182,18 @@
             <h1>Commander<br><span>& Controller</span></h1>
             
             <div class="menu-group">
+                <div class="group-label">Choose your side</div>
+                <div class="side-switch">
+                    <label class="side-option">
+                        <input type="radio" name="playerSide" value="1" checked> Play Green
+                    </label>
+                    <label class="side-option">
+                        <input type="radio" name="playerSide" value="-1"> Play Red
+                    </label>
+                </div>
+            </div>
+
+            <div class="menu-group">
                 <div class="group-label">Solo Operations</div>
                 <button class="btn-large" onclick="initSinglePlayer()">Single Player</button>
             </div>
@@ -190,14 +202,6 @@
                 <div class="group-label">Multiplayer Network</div>
                 
                 <!-- Host Controls -->
-                <div class="side-switch">
-                    <label class="side-option">
-                        <input type="radio" name="hostSide" value="1" checked> Play Green
-                    </label>
-                    <label class="side-option">
-                        <input type="radio" name="hostSide" value="-1"> Play Red
-                    </label>
-                </div>
                 <button class="btn-large secondary" onclick="initHostGame()">Host Match</button>
 
                 <!-- Join Controls -->
@@ -248,7 +252,7 @@ const DB = {
 };
 
 let canvas, ctx;
-let gameActive = false, isPaused = false, isMultiplayer = false, isHost = false, myPlayerId = 1;
+let gameActive = false, isPaused = false, isMultiplayer = false, isHost = false, myPlayerId = 1, aiPlayerId = -1;
 let money = 0, enemyMoney = 0, units = [], particles = [], projectiles = [], GRID = [];
 let selectedUnit = null, missileVal = 0, bases = { p: 2, e: 2 }, lastFrameTime = 0, spawnFlash = 0, mushroomCloud = null, aiTick = 0;
 let peer = null, conn = null;
@@ -460,17 +464,21 @@ function loop(ts) {
                 if (!isMultiplayer) { // AI
                     aiTick++;
                     if (aiTick % 30 === 0) { // Throttle AI
-                        if (enemyMoney >= 120 && units.filter(u => u.owner===-1).length < 10) {
+                        const aiFunds = aiPlayerId === 1 ? money : enemyMoney;
+                        if (aiFunds >= 120 && units.filter(u => u.owner === aiPlayerId).length < 10) {
                             const keys = Object.keys(DB);
-                            const k = keys[Math.floor(Math.random()*keys.length)];
-                            buyUnit(k, -1);
+                            const k = keys[Math.floor(Math.random() * keys.length)];
+                            buyUnit(k, aiPlayerId);
                         }
                         units.forEach(u => {
-                            if (u.owner === -1 && u.state === 'idle' && !u.harvest) {
+                            if (u.owner === aiPlayerId && u.state === 'idle' && !u.harvest) {
                                 if (Math.random() < 0.2) {
-                                    u.setPath(Math.floor(CONFIG.gridCols/2), Math.floor(CONFIG.gridRows/2));
-                                } else if (u.y < CONFIG.gridRows-2) {
-                                    u.setPath(Math.round(u.x), Math.round(u.y)+1);
+                                    // Move towards the center
+                                    u.setPath(Math.floor(CONFIG.gridCols / 2), Math.floor(CONFIG.gridRows / 2));
+                                } else {
+                                    // Move towards the enemy base
+                                    const targetY = u.y > CONFIG.gridRows / 2 ? 0 : CONFIG.gridRows - 1;
+                                    u.setPath(Math.round(u.x), targetY);
                                 }
                             }
                         });
@@ -535,6 +543,26 @@ function loop(ts) {
                         return true;
                     }
 
+                        return true;
+                    }
+
+                    if (p.t === 'bullet') {
+                        if (!targetAlive) return false;
+                        const tx = p.tar.vx, ty = p.tar.vy;
+                        const d = Math.hypot(tx - p.x, ty - p.y);
+
+                        if (d < p.s) {
+                            p.tar.takeDamage(p.dmg);
+                            particles.push({ x: p.x, y: p.y, l: 15, c: '#fa0' });
+                            return false;
+                        }
+
+                        p.x += (tx - p.x) / d * p.s;
+                        p.y += (ty - p.y) / d * p.s;
+                        p.angle = Math.atan2(ty - p.y, tx - p.x);
+                        return true;
+                    }
+
                     // Fallback for old visual bullets if any, though they should be gone
                     if (p.l) { p.l--; return p.l > 0; }
                     return false;
@@ -553,6 +581,18 @@ function loop(ts) {
             if (mushroomCloud) {
                 mushroomCloud.update();
                 if (mushroomCloud.life <= 0) mushroomCloud = null;
+            }
+
+            if (gameActive) {
+                const playerBaseCount = myPlayerId === 1 ? bases.p : bases.e;
+                const enemyBaseCount = myPlayerId === 1 ? bases.e : bases.p;
+                if (playerBaseCount <= 0) {
+                    endGame('DEFEAT');
+                } else if (enemyBaseCount <= 0) {
+                    endGame('VICTORY');
+                }
+            }
+
             }
             if (bases.p <= 0) endGame('DEFEAT');
             else if (bases.e <= 0) endGame('VICTORY');
@@ -611,6 +651,7 @@ function draw() {
         if (selectedUnit === u) {
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(dx, dy, r+5, 0, Math.PI*2); ctx.stroke();
             if (u.path && u.path.length > 0) {
+                drawUnitPath(u, ts);
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
                 ctx.lineWidth = 3;
                 ctx.beginPath();
@@ -712,15 +753,46 @@ function draw() {
     ctx.restore();
 }
 
+function drawUnitPath(u, ts) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(u.vx * ts + ts / 2, u.vy * ts + ts / 2);
+    u.path.forEach(p => ctx.lineTo(p.x * ts + ts / 2, p.y * ts + ts / 2));
+    ctx.stroke();
+
+    // Draw arrow head
+    const lastPoint = u.path[u.path.length - 1];
+    const secondLastPoint = u.path.length > 1 ? u.path[u.path.length - 2] : { x: u.vx, y: u.vy };
+    const angle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
+    const arrowX = lastPoint.x * ts + ts / 2;
+    const arrowY = lastPoint.y * ts + ts / 2;
+
+    ctx.save();
+    ctx.translate(arrowX, arrowY);
+    ctx.rotate(angle);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(-10, -5);
+    ctx.lineTo(-10, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
 // --- UI FUNCTIONS ---
 function initSinglePlayer() {
-    isMultiplayer = false; isHost = true; myPlayerId = 1;
+    const rads = document.getElementsByName('playerSide');
+    for(let r of rads) if(r.checked) myPlayerId = parseInt(r.value);
+    aiPlayerId = -myPlayerId;
+    isMultiplayer = false; isHost = true;
     try { document.getElementById('modal-start').classList.add('hidden'); } catch(e) {}
     generateMap(); startGame();
 }
 
 function initHostGame() {
-    const rads = document.getElementsByName('hostSide');
+    const rads = document.getElementsByName('playerSide');
     for(let r of rads) if(r.checked) myPlayerId = parseInt(r.value);
     
     document.getElementById('main-menu-panel').classList.add('hidden');
@@ -747,8 +819,8 @@ function cancelLobby() {
 
 function setupNet() { conn.on('data', d => { if (isHost && d.t === 'in') handleInput(null, null, d.x, d.y, -myPlayerId); if (isHost && d.t === 'buy') buyUnit(d.k, -myPlayerId); if (!isHost) { if (d.t === 'init') { GRID=d.g; myPlayerId = -d.h; startGameClient(); } if (d.type === 'state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
 function startMP(host) { isMultiplayer = true; isHost = host; if (host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money = CONFIG.startMoney; enemyMoney = CONFIG.startMoney; units=[]; projectiles=[]; missileVal=0; bases={p:2,e:2}; mushroomCloud=null; updateHP(); SFX.init(); gameActive = true; }
-function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive = true; SFX.init(); }
+function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money = CONFIG.startMoney; enemyMoney = CONFIG.startMoney; units=[]; projectiles=[]; missileVal=0; bases={p:2,e:2}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive = true; }
+function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive = true; setupUIForSide(); SFX.init(); }
 function buyUnit(k, p) {
     if (!gameActive || isPaused) return;
     const d = DB[k], funds = p===1?money:enemyMoney;
@@ -774,7 +846,23 @@ function buyUnit(k, p) {
     }
 }
 function handleInput(e, _, nx, ny, netPlayer) { if (e) { e.preventDefault(); const r = canvas.getBoundingClientRect(); const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left; const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top; nx = Math.floor((x - CONFIG.gridOffsetX)/CONFIG.tileSize); ny = Math.floor((y - CONFIG.gridOffsetY)/CONFIG.tileSize); } if (isMultiplayer && !isHost && !netPlayer) { conn.send({t:'in', x:nx, y:ny}); return; } const p = netPlayer || myPlayerId; if (nx >= 0 && nx < CONFIG.gridCols && ny >= 0 && ny < CONFIG.gridRows) { const clicked = units.find(u => Math.hypot(u.x-nx, u.y-ny) < 0.8); if (clicked && clicked.owner === p) { selectedUnit = clicked; return; } if (selectedUnit && selectedUnit.owner === p) { if (clicked && clicked.owner !== p) selectedUnit.setPath(nx, ny); else if ((GRID[ny][nx] !== 1 || selectedUnit.type === 'air')) selectedUnit.setPath(nx, ny); } } }
-function updateHP() { document.getElementById('player-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<bases.p?'active-allied':''}"></div>`).join(''); document.getElementById('enemy-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<bases.e?'active-brothers':''}"></div>`).join(''); }
+function setupUIForSide() {
+    const playerIsGreen = myPlayerId === 1;
+    document.getElementById('right-hp-label').textContent = playerIsGreen ? "ALLIED" : "BROTHERS";
+    document.getElementById('right-hp-label').style.color = playerIsGreen ? CONFIG.colors.p : CONFIG.colors.e;
+    document.getElementById('left-hp-label').textContent = playerIsGreen ? "BROTHERS" : "ALLIED";
+    document.getElementById('left-hp-label').style.color = playerIsGreen ? CONFIG.colors.e : CONFIG.colors.p;
+}
+function updateHP() {
+    const playerIsGreen = myPlayerId === 1;
+    const playerHPCount = playerIsGreen ? bases.p : bases.e;
+    const enemyHPCount = playerIsGreen ? bases.e : bases.p;
+    const playerPipClass = playerIsGreen ? 'active-allied' : 'active-brothers';
+    const enemyPipClass = playerIsGreen ? 'active-brothers' : 'active-allied';
+
+    document.getElementById('right-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<playerHPCount?playerPipClass:''}"></div>`).join('');
+    document.getElementById('left-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<enemyHPCount?enemyPipClass:''}"></div>`).join('');
+}
 function togglePause() { isPaused = !isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
 function addParticles(x, y, count, color) { for(let i=0; i<count; i++) { particles.push({ x:x+(Math.random()-0.5), y:y+(Math.random()-0.5), life:15, c:color }); } }
 function endGame(outcome) {
