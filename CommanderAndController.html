@@ -543,6 +543,28 @@ function loop(ts) {
                         return true;
                     }
 
+                        return true;
+                    }
+
+                    if (p.t === 'bullet') {
+                        if (!targetAlive) return false;
+                        const tx = p.tar.vx, ty = p.tar.vy;
+                        const d = Math.hypot(tx - p.x, ty - p.y);
+
+                        if (d < p.s) {
+                            p.tar.takeDamage(p.dmg);
+                            particles.push({ x: p.x, y: p.y, l: 15, c: '#fa0' });
+                            return false;
+                        }
+
+                        p.x += (tx - p.x) / d * p.s;
+                        p.y += (ty - p.y) / d * p.s;
+                        p.angle = Math.atan2(ty - p.y, tx - p.x);
+                        return true;
+                    }
+
+                    // Fallback for old visual bullets if any, though they should be gone
+                    if (p.l) { p.l--; return p.l > 0; }
                     return false;
                 });
 
@@ -571,6 +593,9 @@ function loop(ts) {
                 }
             }
 
+            }
+            if (bases.p <= 0) endGame('DEFEAT');
+            else if (bases.e <= 0) endGame('VICTORY');
             if (spawnFlash > 0) spawnFlash--;
             
             const myFunds = myPlayerId === 1 ? money : enemyMoney;
@@ -627,6 +652,31 @@ function draw() {
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(dx, dy, r+5, 0, Math.PI*2); ctx.stroke();
             if (u.path && u.path.length > 0) {
                 drawUnitPath(u, ts);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(u.vx * ts + ts / 2, u.vy * ts + ts / 2);
+                u.path.forEach(p => ctx.lineTo(p.x * ts + ts / 2, p.y * ts + ts / 2));
+                ctx.stroke();
+
+                // Draw arrow head
+                const lastPoint = u.path[u.path.length-1];
+                const secondLastPoint = u.path.length > 1 ? u.path[u.path.length - 2] : {x: u.vx, y: u.vy};
+                const angle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
+                const arrowX = lastPoint.x * ts + ts / 2;
+                const arrowY = lastPoint.y * ts + ts / 2;
+
+                ctx.save();
+                ctx.translate(arrowX, arrowY);
+                ctx.rotate(angle);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-10, -5);
+                ctx.lineTo(-10, 5);
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
             }
         }
         ctx.fillStyle = u.owner===1 ? CONFIG.colors.p : CONFIG.colors.e;
