@@ -31,6 +31,10 @@
         .pip { width: 18px; height: 6px; background: #222; border-radius: 1px; }
         .pip.active-allied { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
         .pip.active-brothers { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
+
+        .hp-bar-container { width: 120px; height: 12px; background-color: #222; border: 1px solid #444; border-radius: 3px; position: relative; overflow: hidden; }
+        .hp-bar-fill { height: 100%; transition: width 0.2s ease-out; }
+        .hp-bar-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8px; font-weight: bold; color: #fff; text-shadow: 1px 1px 0 #000; }
         
         .missile-timer { width: 160px; height: 6px; background: #111; border: 1px solid #444; border-radius: 3px; overflow: hidden; position: relative; }
         #missile-fill { height: 100%; width: 0%; transition: width 0.1s linear; background: #fff; }
@@ -155,7 +159,7 @@
         <div class="top-bar pointer-enabled">
             <div class="hp-box">
                 <span class="hp-label" id="left-hp-label"></span>
-                <div class="hp-pips" id="left-hp"></div>
+                <div id="left-hp" class="hp-bar-container"><div class="hp-bar-fill"><span class="hp-bar-text"></span></div></div>
             </div>
             
             <div class="missile-timer"><div id="missile-fill"></div></div>
@@ -163,7 +167,7 @@
             <div style="display:flex; gap:15px; align-items:center;">
                 <div class="hp-box">
                     <span class="hp-label" id="right-hp-label"></span>
-                    <div class="hp-pips" id="right-hp"></div>
+                    <div id="right-hp" class="hp-bar-container"><div class="hp-bar-fill"><span class="hp-bar-text"></span></div></div>
                 </div>
                 <button id="pause-btn" onclick="togglePause()">PAUSE</button>
             </div>
@@ -243,18 +247,23 @@
 const CONFIG = { gridCols: 11, gridRows: 15, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 200, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
 
 const DB = {
-    rifle: { n:'Rifle', cost:40, hp:60, dmg:10, spd:0.0075, rng:1.5, cd:40, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.05, air: 0.05 } },
-    missile: { n:'Launcher', cost:120, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.2, vehicle: 1.2, air: 1.5 } },
-    buggy: { n:'Buggy', cost:160, hp:120, dmg:12, spd:0.0125, rng:1.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 2.5, vehicle: 0.2, air: 0.1 } },
-    tank: { n:'Tank', cost:280, hp:350, dmg:60, spd:0.005, rng:2.0, cd:100, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.1, vehicle: 1.0, air: 0.0 } },
-    orca: { n:'Orca', cost:360, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.2, vehicle: 1.5, air: 0.0 } },
+    rifle: { n:'Rifle', cost:40, hp:60, dmg:10, spd:0.0075, rng:1.5, cd:40, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.05, air: 0.05, building: 0.5 } },
+    missile: { n:'Launcher', cost:120, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.2, vehicle: 1.2, air: 1.5, building: 1.5 } },
+    buggy: { n:'Buggy', cost:160, hp:120, dmg:12, spd:0.0125, rng:1.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 2.5, vehicle: 0.2, air: 0.1, building: 0.75 } },
+    tank: { n:'Tank', cost:280, hp:350, dmg:60, spd:0.005, rng:2.0, cd:100, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.1, vehicle: 1.0, air: 0.0, building: 1.0 } },
+    orca: { n:'Orca', cost:360, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.2, vehicle: 1.5, air: 0.0, building: 2.0 } },
     harv: { n:'Harvester', cost:200, hp:350, dmg:0, spd:0.0035, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
+};
+
+const baseCoordinates = {
+    '1': {x: Math.floor(CONFIG.gridCols/2), y: CONFIG.gridRows - 1},
+    '-1': {x: Math.floor(CONFIG.gridCols/2), y: 0}
 };
 
 let canvas, ctx;
 let gameActive = false, isPaused = false, isMultiplayer = false, isHost = false, myPlayerId = 1, aiPlayerId = -1;
 let money = 0, enemyMoney = 0, units = [], particles = [], projectiles = [], GRID = [];
-let selectedUnit = null, missileVal = 0, bases = { p: 2, e: 2 }, lastFrameTime = 0, spawnFlash = 0, mushroomCloud = null, aiTick = 0;
+let selectedUnit = null, missileVal = 0, bases = { p: 2000, e: 2000 }, lastFrameTime = 0, spawnFlash = 0, mushroomCloud = null, aiTick = 0;
 let peer = null, conn = null;
 
 // --- AUDIO ---
@@ -373,7 +382,8 @@ function generateMap() {
     GRID = [];
     const cols = CONFIG.gridCols, rows = CONFIG.gridRows, cx = Math.floor(cols/2), cy = Math.floor(rows/2);
     for (let r = 0; r < rows; r++) GRID.push(new Array(cols).fill(0));
-    GRID[0][cx] = 4; GRID[rows-1][cx] = 4;
+    GRID[0][cx] = 4; // Player -1 (enemy) base
+    GRID[rows-1][cx] = 4; // Player 1 (player) base
     [{r:4,c:2}, {r:4,c:cols-3}, {r:cy,c:cx}, {r:rows-5,c:2}, {r:rows-5,c:cols-3}].forEach(p => GRID[p.r][p.c] = 3);
     [{r:1,c:1}, {r:1,c:cols-2}, {r:rows-2,c:1}, {r:rows-2,c:cols-2}, {r:cy,c:1}, {r:cy,c:cols-2}].forEach(p => GRID[p.r][p.c] = 2);
     for (let r = 2; r < Math.floor(rows/2); r++) {
@@ -414,32 +424,38 @@ class Unit {
     }
     setPath(tx, ty) { this.path = findPath(this, tx, ty); if (this.path.length > 0) this.state='move'; }
     findTarget() {
-        let t=null, max=0;
+        let t = null, max = 0;
         units.forEach(u => {
-            if (u.owner !== this.owner && Math.hypot(this.x-u.x, this.y-u.y) <= this.rng) {
-                let m = this.mods[u.type]||1;
-                if (this.dmg*m > 1 && this.dmg*m > max) { max=this.dmg*m; t=u; }
+            if (u.owner !== this.owner && Math.hypot(this.x - u.x, this.y - u.y) <= this.rng) {
+                let m = this.mods[u.type] || 1;
+                if (this.dmg * m > 1 && this.dmg * m > max) { max = this.dmg * m; t = u; }
             }
         });
-        if (!t) units.forEach(u => { if (u.owner !== this.owner && Math.hypot(this.x-u.x, this.y-u.y) <= this.rng) t=u; });
+
+        if (!t) {
+            const enemyBase = baseCoordinates[this.owner * -1];
+            if (Math.hypot(this.x - enemyBase.x, this.y - enemyBase.y) <= this.rng && (this.mods.building || 0) > 0) {
+                t = { isBase: true, x: enemyBase.x, y: enemyBase.y, owner: this.owner * -1, type: 'building', vx: enemyBase.x, vy: enemyBase.y };
+            }
+        }
         return t;
     }
     attack(t) {
         if (this.cd > 0) return;
         this.cd = this.cdMax;
-        this.recoil = 5; 
+        this.recoil = 5;
         this.attackAngle = Math.atan2(t.y - this.y, t.x - this.x);
-        let m = this.mods[t.type]||1;
+        let m = this.mods[t.type] || 1;
 
         const projSpeed = 0.08;
 
         if (this.proj === 'missile') {
             SFX.launch();
-            addParticles(this.vx, this.vy, 3, '#fff'); // Smoke puff
-            projectiles.push({t:'missile', x:this.vx, y:this.vy, tar:t, tx:t.vx, ty:t.vy, dmg:this.dmg*m, o:this.owner, s:0.04, c:this.owner===1?'#ff0':'#fa0'});
+            addParticles(this.vx, this.vy, 3, '#fff');
+            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0' });
         } else {
-            if (this.key==='tank') SFX.tank(); else SFX.shoot(); 
-            projectiles.push({t:'bullet', x:this.vx, y:this.vy, tar:t, dmg:this.dmg*m, o:this.owner, s: projSpeed, c:this.owner===1?'#0f0':'#f00'});
+            if (this.key === 'tank') SFX.tank(); else SFX.shoot();
+            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: projSpeed, c: this.owner === 1 ? '#0f0' : '#f00' });
         }
     }
     takeDamage(a) { 
@@ -477,8 +493,8 @@ function loop(ts) {
                                     u.setPath(Math.floor(CONFIG.gridCols / 2), Math.floor(CONFIG.gridRows / 2));
                                 } else {
                                     // Move towards the enemy base
-                                    const targetY = u.y > CONFIG.gridRows / 2 ? 0 : CONFIG.gridRows - 1;
-                                    u.setPath(Math.round(u.x), targetY);
+                                    const enemyBaseCoords = baseCoordinates[u.owner * -1];
+                                    u.setPath(enemyBaseCoords.x, enemyBaseCoords.y);
                                 }
                             }
                         });
@@ -508,18 +524,30 @@ function loop(ts) {
                 projectiles = projectiles.filter(p => {
                     if (p.t === 'nuke') {
                         const d = Math.hypot(p.tx-p.x, p.ty-p.y);
-                        if (d < p.s) { SFX.nuke(); mushroomCloud=new MushroomCloud(p.tx, p.ty); if(p.o===1) bases.e--; else bases.p--; updateHP(); return false; }
+                        if (d < p.s) { SFX.nuke(); mushroomCloud=new MushroomCloud(p.tx, p.ty); if(p.o===1) bases.e /= 2; else bases.p /= 2; updateHP(); return false; }
                         p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s;
                         if(Math.random()>0.1) particles.push({x:p.x, y:p.y, l:30, c:'#ff0'});
                         return true;
                     }
 
-                    const targetAlive = p.tar && units.includes(p.tar);
+                    const targetAlive = p.tar && (p.tar.isBase || units.includes(p.tar));
 
                     if (p.t === 'missile') {
                         if (targetAlive) { p.tx = p.tar.vx; p.ty = p.tar.vy; }
                         const d = Math.hypot(p.tx - p.x, p.ty - p.y);
-                        if (d < p.s) { if(targetAlive) p.tar.takeDamage(p.dmg); SFX.explode(); addParticles(p.x, p.y, 6, 'orange'); return false; }
+                        if (d < p.s) {
+                            if (targetAlive) {
+                                if (p.tar.isBase) {
+                                    const baseKey = p.o === 1 ? 'e' : 'p';
+                                    bases[baseKey] = Math.max(0, bases[baseKey] - p.dmg);
+                                    updateHP();
+                                } else {
+                                    p.tar.takeDamage(p.dmg);
+                                }
+                            }
+                            SFX.explode(); addParticles(p.x, p.y, 6, 'orange');
+                            return false;
+                        }
                         p.x += (p.tx - p.x) / d * p.s; p.y += (p.ty - p.y) / d * p.s;
                         p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
                         if (Math.random() > 0.3) particles.push({ x: p.x, y: p.y, l: 10, c: '#aaa', size: 0.1 });
@@ -532,7 +560,13 @@ function loop(ts) {
                         const d = Math.hypot(tx - p.x, ty - p.y);
 
                         if (d < p.s) {
-                            p.tar.takeDamage(p.dmg);
+                            if (p.tar.isBase) {
+                                const baseKey = p.o === 1 ? 'e' : 'p';
+                                bases[baseKey] = Math.max(0, bases[baseKey] - p.dmg);
+                                updateHP();
+                            } else {
+                                p.tar.takeDamage(p.dmg);
+                            }
                             particles.push({ x: p.x, y: p.y, l: 15, c: '#fa0' });
                             return false;
                         }
@@ -564,11 +598,11 @@ function loop(ts) {
             }
 
             if (gameActive) {
-                const playerBaseCount = myPlayerId === 1 ? bases.p : bases.e;
-                const enemyBaseCount = myPlayerId === 1 ? bases.e : bases.p;
-                if (playerBaseCount <= 0) {
+                const playerBaseHp = myPlayerId === 1 ? bases.p : bases.e;
+                const enemyBaseHp = myPlayerId === 1 ? bases.e : bases.p;
+                if (playerBaseHp <= 0) {
                     endGame('DEFEAT');
-                } else if (enemyBaseCount <= 0) {
+                } else if (enemyBaseHp <= 0) {
                     endGame('VICTORY');
                 }
             }
@@ -605,7 +639,24 @@ function draw() {
                 ctx.globalAlpha = 0.3; ctx.fillRect(x+5,y+5,ts-10,ts-10); ctx.globalAlpha = 1;
                 ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 2; ctx.strokeRect(x+10,y+10,ts-20,ts-20);
             }
-            if (t===4) { ctx.fillStyle = r<2 ? '#400':'#040'; ctx.fillRect(x+5,y+5,ts-10,ts-10); }
+            if (t===4) { // Base
+                const baseOwner = r < 2 ? -1 : 1;
+                const baseHp = baseOwner === 1 ? bases.p : bases.e;
+
+                ctx.font = `${ts*0.8}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillStyle = baseOwner === 1 ? CONFIG.colors.p : CONFIG.colors.e;
+                ctx.fillText('⌂', x + ts/2, y + ts/2);
+
+                // Base HP bar
+                ctx.fillStyle = '#222';
+                ctx.fillRect(x, y - 10, ts, 5);
+                ctx.fillStyle = baseOwner === 1 ? CONFIG.colors.p : CONFIG.colors.e;
+                ctx.fillRect(x, y - 10, ts * (baseHp / 2000), 5);
+                ctx.strokeStyle = '#555';
+                ctx.strokeRect(x, y - 10, ts, 5);
+            }
         }
     }
     if (spawnFlash>0) { ctx.fillStyle = 'rgba(0,255,0,0.3)'; ctx.fillRect(0, (myPlayerId===1?CONFIG.gridRows-2:0)*ts, CONFIG.gridCols*ts, 2*ts); }
@@ -796,7 +847,7 @@ function cancelLobby() {
 
 function setupNet() { conn.on('data', d => { if (isHost && d.t === 'in') handleInput(null, null, d.x, d.y, -myPlayerId); if (isHost && d.t === 'buy') buyUnit(d.k, -myPlayerId); if (!isHost) { if (d.t === 'init') { GRID=d.g; myPlayerId = -d.h; startGameClient(); } if (d.type === 'state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
 function startMP(host) { isMultiplayer = true; isHost = host; if (host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money = CONFIG.startMoney; enemyMoney = CONFIG.startMoney; units=[]; projectiles=[]; missileVal=0; bases={p:2,e:2}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive = true; }
+function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money = CONFIG.startMoney; enemyMoney = CONFIG.startMoney; units=[]; projectiles=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive = true; }
 function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive = true; setupUIForSide(); SFX.init(); }
 function buyUnit(k, p) {
     if (!gameActive || isPaused) return;
@@ -831,14 +882,26 @@ function setupUIForSide() {
     document.getElementById('left-hp-label').style.color = playerIsGreen ? CONFIG.colors.e : CONFIG.colors.p;
 }
 function updateHP() {
+    const MAX_HP = 2000;
     const playerIsGreen = myPlayerId === 1;
-    const playerHPCount = playerIsGreen ? bases.p : bases.e;
-    const enemyHPCount = playerIsGreen ? bases.e : bases.p;
-    const playerPipClass = playerIsGreen ? 'active-allied' : 'active-brothers';
-    const enemyPipClass = playerIsGreen ? 'active-brothers' : 'active-allied';
 
-    document.getElementById('right-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<playerHPCount?playerPipClass:''}"></div>`).join('');
-    document.getElementById('left-hp').innerHTML = Array(2).fill(0).map((_,i)=>`<div class="pip ${i<enemyHPCount?enemyPipClass:''}"></div>`).join('');
+    const playerHP = playerIsGreen ? bases.p : bases.e;
+    const enemyHP = playerIsGreen ? bases.e : bases.p;
+
+    const rightHpContainer = document.getElementById('right-hp');
+    const leftHpContainer = document.getElementById('left-hp');
+
+    const rightBarFill = rightHpContainer.querySelector('.hp-bar-fill');
+    const rightBarText = rightHpContainer.querySelector('.hp-bar-text');
+    rightBarFill.style.width = `${(playerHP / MAX_HP) * 100}%`;
+    rightBarFill.style.backgroundColor = playerIsGreen ? CONFIG.colors.p : CONFIG.colors.e;
+    rightBarText.textContent = `${Math.round(playerHP)} / ${MAX_HP}`;
+
+    const leftBarFill = leftHpContainer.querySelector('.hp-bar-fill');
+    const leftBarText = leftHpContainer.querySelector('.hp-bar-text');
+    leftBarFill.style.width = `${(enemyHP / MAX_HP) * 100}%`;
+    leftBarFill.style.backgroundColor = playerIsGreen ? CONFIG.colors.e : CONFIG.colors.p;
+    leftBarText.textContent = `${Math.round(enemyHP)} / ${MAX_HP}`;
 }
 function togglePause() { isPaused = !isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
 function addParticles(x, y, count, color) { for(let i=0; i<count; i++) { particles.push({ x:x+(Math.random()-0.5), y:y+(Math.random()-0.5), life:15, c:color }); } }
