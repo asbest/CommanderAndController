@@ -495,25 +495,23 @@ function findUnoccupiedMissilePlatform() {
     return null; // All platforms are occupied or non-existent
 }
 
-function findBestCounter(enemyUnitType) {
-    if (!enemyUnitType) return null;
+function getRankedCounters(enemyUnitType) {
+    if (!enemyUnitType) return [];
 
-    let bestCounter = null;
-    let maxDamage = 0;
-
+    const counters = [];
     for (const unitKey in DB) {
         const unitData = DB[unitKey];
-        if (unitData.cost > 0) { // Exclude non-buildable units like harvesters
+        if (unitData.cost > 0) { // Exclude non-buildable units
             const damageModifier = unitData.mods[enemyUnitType] || 0;
             const potentialDamage = unitData.dmg * damageModifier;
-
-            if (potentialDamage > maxDamage) {
-                maxDamage = potentialDamage;
-                bestCounter = unitKey;
-            }
+            counters.push({ unit: unitKey, effectiveness: potentialDamage });
         }
     }
-    return bestCounter;
+
+    // Sort by effectiveness in descending order
+    counters.sort((a, b) => b.effectiveness - a.effectiveness);
+
+    return counters.map(c => c.unit);
 }
 
 // --- MAIN LOOP ---
@@ -560,25 +558,35 @@ function loop(ts) {
                             let unitToBuild = null;
 
                             if (enemyUnits.length > 0) {
-                                // Find the most common enemy unit type to counter
                                 const enemyTypeCounts = {};
-                                enemyUnits.forEach(u => {
-                                    enemyTypeCounts[u.type] = (enemyTypeCounts[u.type] || 0) + 1;
-                                });
+                                enemyUnits.forEach(u => { enemyTypeCounts[u.type] = (enemyTypeCounts[u.type] || 0) + 1; });
                                 const mostCommonEnemyType = Object.keys(enemyTypeCounts).reduce((a, b) => enemyTypeCounts[a] > enemyTypeCounts[b] ? a : b);
 
-                                unitToBuild = findBestCounter(mostCommonEnemyType);
-                            }
+                                const rankedCounters = getRankedCounters(mostCommonEnemyType);
 
-                            // Fallback to random if no specific counter is found or affordable
-                            if (!unitToBuild || DB[unitToBuild].cost > aiFunds) {
-                                const availableUnits = Object.keys(DB).filter(k => DB[k].cost > 0 && DB[k].cost <= aiFunds);
-                                if (availableUnits.length > 0) {
-                                    unitToBuild = availableUnits[Math.floor(Math.random() * availableUnits.length)];
+                                for (const counterUnit of rankedCounters) {
+                                    if (DB[counterUnit].cost <= aiFunds) {
+                                        // Check if it's a worthwhile counter before building
+                                        const counterEffectiveness = DB[counterUnit].mods[mostCommonEnemyType] || 0;
+                                        if (counterEffectiveness > 1) {
+                                            unitToBuild = counterUnit;
+                                            break; // Found the best affordable counter
+                                        }
+                                    }
                                 }
                             }
 
-                            if (unitToBuild && DB[unitToBuild].cost <= aiFunds) {
+                            // If no specific counter is found or affordable, build the most expensive unit possible
+                            if (!unitToBuild) {
+                                const affordableUnits = Object.keys(DB)
+                                    .filter(k => DB[k].cost > 0 && DB[k].cost <= aiFunds)
+                                    .sort((a, b) => DB[b].cost - DB[a].cost); // Sort by cost descending
+                                if (affordableUnits.length > 0) {
+                                    unitToBuild = affordableUnits[0]; // Choose the priciest one
+                                }
+                            }
+
+                            if (unitToBuild) {
                                 buyUnit(unitToBuild, aiPlayerId);
                             }
                         }
