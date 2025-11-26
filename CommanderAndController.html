@@ -582,7 +582,41 @@ function draw() {
         const dx = cx + rx;
         const dy = cy + ry;
         
-        if (selectedUnit === u) { ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(dx, dy, r+5, 0, Math.PI*2); ctx.stroke(); }
+        if (selectedUnit === u) {
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(dx, dy, r+5, 0, Math.PI*2);
+            ctx.stroke();
+
+            if (u.path && u.path.length > 0) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = 3;
+                ctx.lineCap = 'round';
+                ctx.beginPath();
+                ctx.moveTo(u.vx * ts + ts / 2, u.vy * ts + ts / 2);
+                for (const p of u.path) {
+                    ctx.lineTo(p.x * ts + ts / 2, p.y * ts + ts / 2);
+                }
+                ctx.stroke();
+
+                const lastPoint = u.path[u.path.length - 1];
+                const secondLastPoint = u.path.length > 1 ? u.path[u.path.length - 2] : { x: u.vx, y: u.vy };
+
+                const arrowAngle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
+                const arrowSize = ts * 0.3;
+                const tipX = lastPoint.x * ts + ts / 2;
+                const tipY = lastPoint.y * ts + ts / 2;
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.beginPath();
+                ctx.moveTo(tipX, tipY);
+                ctx.lineTo(tipX - arrowSize * Math.cos(arrowAngle - Math.PI / 6), tipY - arrowSize * Math.sin(arrowAngle - Math.PI / 6));
+                ctx.lineTo(tipX - arrowSize * Math.cos(arrowAngle + Math.PI / 6), tipY - arrowSize * Math.sin(arrowAngle + Math.PI / 6));
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
         ctx.fillStyle = u.owner===1 ? CONFIG.colors.p : CONFIG.colors.e;
         
         // Missile Car Drawing
