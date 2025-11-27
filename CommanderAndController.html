@@ -751,14 +751,10 @@ function update3D() {
         // Rotation
         if (u.state === 'move' && u.path.length) {
             const next = u.path[0];
-            const targetAngle = Math.atan2(next.y - u.y, next.x - u.x); // grid y is 3d z
-            // In 3D: atan2(deltaZ, deltaX) gives angle from X axis.
-            // Our 3D setup: X is right, Z is down.
-            // Grid Y maps to 3D Z.
-            // So atan2(dy, dx) is correct for rotation around Y axis, but we might need offset.
-            mesh.rotation.y = -targetAngle; // Invert for 3D coordinate system match?
+            const targetAngle = Math.atan2(next.y - u.y, next.x - u.x);
+            mesh.rotation.y = -targetAngle + Math.PI/2;
         } else if (u.attackAngle) {
-            mesh.rotation.y = -u.attackAngle;
+            mesh.rotation.y = -u.attackAngle + Math.PI/2;
         }
 
         // Hover for air
@@ -849,8 +845,9 @@ function update3D() {
         if(mesh) {
             const x = p.x * TILE_SIZE_3D + TILE_SIZE_3D/2;
             const z = p.y * TILE_SIZE_3D + TILE_SIZE_3D/2;
-            mesh.position.set(x, 4, z); // Fly higher
-            mesh.rotation.y = -p.angle;
+            mesh.position.set(x, 4, z);
+            mesh.rotation.y = -p.angle + Math.PI/2;
+            mesh.scale.set(1.5, 1.5, 1.5);
             window.projectileGroup.add(mesh);
         }
     });
@@ -1085,6 +1082,7 @@ function createUnitMesh(key, color) {
         group.add(body, lTread, rTread, scoopGroup, container);
     }
 
+    group.scale.set(1.8, 1.8, 1.8);
     return group;
 }
 
