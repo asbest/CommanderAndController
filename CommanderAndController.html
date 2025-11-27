@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Commander and Controller</title>
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         /* --- CORE & RESET --- */
         body {
@@ -15,106 +15,114 @@
         }
         
         /* --- CANVAS & LAYOUT --- */
-        #game-container { position: relative; width: 100vw; height: 100vh; background: #000; overflow: hidden; }
-        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; outline: none; }
-        #gameCanvas { z-index: 1; }
+        #game-container { position: relative; width: 100vw; height: 100vh; background: #000; display: flex; justify-content: center; align-items: center; }
+        canvas { position: absolute; max-width: 100%; max-height: 100%; }
+        #gameCanvas { background: #080808; z-index: 1; }
         #hudCanvas { z-index: 2; pointer-events: none; }
+
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; z-index: 10; }
         .pointer-enabled { pointer-events: auto; }
 
         /* --- HUD --- */
         .top-bar { 
-            background: rgba(0, 10, 0, 0.85); padding: 12px 20px; 
+            background: rgba(0, 20, 0, 0.7); padding: 12px 20px;
             display: flex; justify-content: space-between; align-items: center; 
-            border-bottom: 1px solid #333; backdrop-filter: blur(5px); 
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2); backdrop-filter: blur(8px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
         }
         .hp-box { display: flex; flex-direction: column; align-items: center; min-width: 70px; }
-        .hp-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
-        .hp-pips { display: flex; gap: 4px; }
-        .pip { width: 18px; height: 6px; background: #222; border-radius: 1px; }
-        .pip.active-allied { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
-        .pip.active-brothers { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
+        .hp-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; text-transform: uppercase; }
 
-        .hp-bar-container { width: 120px; height: 12px; background-color: #222; border: 1px solid #444; border-radius: 3px; position: relative; overflow: hidden; }
+        .hp-bar-container { width: 120px; height: 8px; background-color: #111; border: 1px solid #444; border-radius: 2px; position: relative; overflow: hidden; }
         .hp-bar-fill { height: 100%; transition: width 0.2s ease-out; }
         .hp-bar-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8px; font-weight: bold; color: #fff; text-shadow: 1px 1px 0 #000; }
         
-        .missile-timer { width: 160px; height: 6px; background: #111; border: 1px solid #444; border-radius: 3px; overflow: hidden; position: relative; }
-        #missile-fill { height: 100%; width: 0%; transition: width 0.1s linear; background: #fff; }
+        .missile-timer { width: 160px; height: 4px; background: #111; border: 1px solid #444; border-radius: 2px; overflow: hidden; position: relative; }
+        #missile-fill { height: 100%; width: 0%; transition: width 0.1s linear; background: #fff; box-shadow: 0 0 10px #fff; }
 
         #pause-btn { 
-            background: transparent; color: #00ff00; border: 1px solid #00ff00; 
+            background: rgba(0, 255, 0, 0.1); color: #00ff00; border: 1px solid #00ff00;
             padding: 6px 14px; font-size: 12px; font-weight: 700; letter-spacing: 1px;
             cursor: pointer; border-radius: 4px; transition: all 0.2s; 
+            text-shadow: 0 0 5px rgba(0,255,0,0.5);
         }
-        #pause-btn:hover { background: rgba(0, 255, 0, 0.15); }
+        #pause-btn:hover { background: rgba(0, 255, 0, 0.3); box-shadow: 0 0 10px rgba(0,255,0,0.4); }
 
         .resource-display { 
-            position: absolute; bottom: 120px; left: 20px; font-size: 32px; 
+            position: absolute; bottom: 130px; left: 20px; font-size: 32px;
             color: #00ff00; font-weight: 700; letter-spacing: -1px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8); pointer-events: none; z-index: 20; font-family: monospace; 
+            text-shadow: 0 0 10px rgba(0,255,0,0.6); pointer-events: none; z-index: 20; font-family: monospace;
         }
 
         /* --- BUILD MENU --- */
         .build-menu { 
-            background: rgba(5, 10, 5, 0.9); padding: 15px; display: flex; gap: 12px; 
-            overflow-x: auto; justify-content: center; border-top: 1px solid #333; 
+            background: rgba(5, 10, 5, 0.85); padding: 15px; display: flex; gap: 12px;
+            overflow-x: auto; justify-content: center; border-top: 1px solid rgba(0,255,0,0.2);
             padding-bottom: 25px; backdrop-filter: blur(10px); 
         }
         .card { 
-            width: 64px; height: 90px; background: linear-gradient(to bottom, #1a2a1a, #050505); 
+            width: 64px; height: 90px; background: linear-gradient(to bottom, #111, #050505);
             border: 1px solid #333; border-radius: 6px; display: flex; flex-direction: column; 
             align-items: center; justify-content: center; cursor: pointer; position: relative; 
             transition: transform 0.1s, border-color 0.2s; 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
         }
         .card:active { transform: scale(0.96); }
-        .card.disabled { opacity: 0.3; filter: grayscale(1); cursor: default; }
-        .card:not(.disabled):hover { border-color: #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.15); }
-        .card-icon { font-size: 26px; margin-bottom: 6px; }
-        .card-cost { color: #ffff00; font-weight: 700; font-size: 11px; position: absolute; top: 4px; right: 5px; font-family: monospace;}
+        .card.disabled { opacity: 0.4; filter: grayscale(1) brightness(0.5); cursor: default; border-color: #222; }
+        .card:not(.disabled):hover { border-color: #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.2), inset 0 0 10px rgba(0,255,0,0.1); }
+        .card-icon { font-size: 26px; margin-bottom: 6px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
+        .card-cost { color: #ffff00; font-weight: 700; font-size: 11px; position: absolute; top: 4px; right: 5px; font-family: monospace; text-shadow: 0 0 2px #000;}
         .card-name { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
 
         /* --- MODALS & MENUS --- */
         .modal-overlay { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
             display: flex; flex-direction: column; justify-content: center; align-items: center; 
             z-index: 100; pointer-events: auto; 
         }
         .modal-overlay.hidden { display: none !important; }
         
         .glass-panel {
-            background: rgba(20, 25, 20, 0.7);
-            border: 1px solid rgba(0, 255, 0, 0.2);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            background: rgba(20, 30, 20, 0.85);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.05) inset, 0 0 30px rgba(0,255,0,0.1);
             padding: 40px;
-            border-radius: 16px;
+            border-radius: 4px;
             width: 340px;
             display: flex;
             flex-direction: column;
             gap: 25px;
             text-align: center;
+            position: relative;
+        }
+        .glass-panel::before {
+            content: ''; position: absolute; top: 2px; left: 2px; right: 2px; bottom: 2px;
+            border: 1px solid rgba(0,255,0,0.1); pointer-events: none;
         }
 
         h1 { 
-            color: #fff; font-size: 28px; text-transform: uppercase; letter-spacing: 4px; 
-            margin: 0; font-weight: 300; text-shadow: 0 0 20px rgba(0,255,0,0.4);
+            color: #fff; font-size: 28px; text-transform: uppercase; letter-spacing: 6px;
+            margin: 0; font-weight: 300; text-shadow: 0 0 20px rgba(0,255,0,0.6);
             line-height: 1.2;
         }
-        h1 span { color: #00ff00; font-weight: 700; }
+        h1 span { color: #00ff00; font-weight: 800; }
 
         .menu-group { display: flex; flex-direction: column; gap: 12px; }
         .group-label { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; text-align: left; margin-bottom: 5px; }
 
         .btn-large { 
-            background: #00ff00; color: #000; border: none; padding: 14px; 
-            font-size: 13px; font-weight: 800; cursor: pointer; border-radius: 6px; 
+            background: linear-gradient(135deg, #00cc00, #008800);
+            color: #000; border: none; padding: 14px;
+            font-size: 13px; font-weight: 800; cursor: pointer; border-radius: 2px;
             text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; width: 100%;
+            box-shadow: 0 4px 10px rgba(0,255,0,0.2);
         }
-        .btn-large:hover { background: #66ff66; transform: translateY(-1px); box-shadow: 0 5px 15px rgba(0,255,0,0.3); }
+        .btn-large:hover { transform: translateY(-1px); box-shadow: 0 6px 15px rgba(0,255,0,0.4); filter: brightness(1.2); }
         
         .btn-large.secondary { 
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; 
+            box-shadow: none;
         }
         .btn-large.secondary:hover { 
             border-color: #00ff00; color: #fff; background: rgba(0,255,0,0.1); 
@@ -124,33 +132,22 @@
         .input-box { 
             flex: 1; padding: 12px; font-size: 14px; text-align: center; 
             background: rgba(0,0,0,0.5); border: 1px solid #333; color: #fff; 
-            border-radius: 6px; font-family: monospace; outline: none; transition: border-color 0.2s;
+            border-radius: 2px; font-family: monospace; outline: none; transition: border-color 0.2s;
         }
         .input-box:focus { border-color: #00ff00; }
 
         .side-switch { 
-            display: flex; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 4px; border: 1px solid #333;
+            display: flex; background: rgba(0,0,0,0.3); border-radius: 2px; padding: 4px; border: 1px solid #333;
         }
         .side-option { 
             flex: 1; padding: 8px; cursor: pointer; font-size: 11px; font-weight: 600; 
-            text-transform: uppercase; color: #666; border-radius: 4px; transition: all 0.2s;
+            text-transform: uppercase; color: #666; border-radius: 2px; transition: all 0.2s;
         }
         .side-option:hover { color: #999; }
         .side-option input { display: none; }
-        .side-option:has(input:checked) { background: #222; color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .side-option:has(input:checked) { background: #222; color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.5); border: 1px solid #444; }
 
         #lobby-status { font-family: monospace; color: #aaa; font-size: 12px; margin-top: 10px; }
-
-        .click-feedback {
-            position: absolute; width: 30px; height: 30px;
-            border: 2px solid rgba(255,255,255,0.9); border-radius: 50%;
-            transform: translate(-50%, -50%); pointer-events: none;
-            animation: ripple 0.4s ease-out forwards; z-index: 90;
-        }
-        @keyframes ripple {
-            0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
-        }
     </style>
 </head>
 <body>
@@ -158,6 +155,7 @@
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
     <canvas id="hudCanvas"></canvas>
+    <!-- CRT Effect Removed -->
     
     <div id="ui-layer">
         <div class="top-bar pointer-enabled">
@@ -208,11 +206,7 @@
 
             <div class="menu-group">
                 <div class="group-label">Multiplayer Network</div>
-                
-                <!-- Host Controls -->
                 <button class="btn-large secondary" onclick="initHostGame()">Host Match</button>
-
-                <!-- Join Controls -->
                 <div class="input-row" style="margin-top: 5px;">
                     <input type="text" id="join-id-input" class="input-box" placeholder="Lobby ID">
                     <button class="btn-large secondary" style="width: auto; padding: 0 20px;" onclick="initJoinGame()">Join</button>
@@ -220,7 +214,6 @@
             </div>
         </div>
 
-        <!-- Lobby Status Sub-Screen -->
         <div id="lobby-ui" class="glass-panel hidden">
             <h2>Connection</h2>
             <p id="lobby-status">Initializing...</p>
@@ -250,114 +243,65 @@
 <script>
 const CONFIG = { gridCols: 11, gridRows: 15, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 500, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
 
-// Updated Balance:
+// Updated Balance with Graphics Keys
 const DB = {
     rifle: { n:'Rifle', cost:50, hp:60, dmg:10, spd:0.0075, rng:1.5, cd:40, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.1, air: 0.1, building: 0.5 } },
-    missile: { n:'Launcher', cost:150, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.5, vehicle: 2.0, air: 4.0, building: 2.0 } },
+    missile: { n:'Launcher', cost:150, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'🚀', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.5, vehicle: 2.0, air: 4.0, building: 2.0 } },
     buggy: { n:'Buggy', cost:200, hp:120, dmg:12, spd:0.0125, rng:2.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.0, vehicle: 0.3, air: 3.5, building: 0.5 } },
     tank: { n:'Tank', cost:300, hp:350, dmg:60, spd:0.005, rng:2.0, cd:100, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.5, air: 0.0, building: 1.5 } },
     orca: { n:'Orca', cost:400, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 2.5, missile: 0.1, air: 1.0, building: 2.0 } },
     harv: { n:'Harvester', cost:250, hp:350, dmg:0, spd:0.0035, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
 };
 
-const baseCoordinates = {
-    '1': {x: Math.floor(CONFIG.gridCols/2), y: CONFIG.gridRows - 1},
-    '-1': {x: Math.floor(CONFIG.gridCols/2), y: 0}
-};
+const baseCoordinates = { '1': {x: Math.floor(CONFIG.gridCols/2), y: CONFIG.gridRows - 1}, '-1': {x: Math.floor(CONFIG.gridCols/2), y: 0} };
 
+let canvas, ctx, hudCanvas, hudCtx, bgCanvas; // canvas/ctx for 3D is managed by Three.js, but we keep var names for compatibility if needed or refactoring
 let gameActive = false, isPaused = false, isMultiplayer = false, isHost = false, myPlayerId = 1, aiPlayerId = -1;
-let money = 0, enemyMoney = 0, units = [], particles = [], projectiles = [], GRID = [];
+let money = 0, enemyMoney = 0, units = [], particles = [], debris = [], projectiles = [], GRID = [];
 let selectedUnit = null, missileVal = 0, bases = { p: 2000, e: 2000 }, lastFrameTime = 0, spawnFlash = 0, mushroomCloud = null, aiTick = 0;
 let peer = null, conn = null;
 
-// 3D GLOBALS
-let scene, camera, renderer, hudCtx, hudCanvas;
-let raycaster = new THREE.Raycaster();
-let mouse = new THREE.Vector2();
-let planeGeometry; // The ground plane for intersection
-let terrainGroup;
-const TILE_SIZE_3D = 4;
-const unitMeshes = new Map();
-const projectileMeshes = new Map();
+// THREE.JS GLOBALS
+let scene, camera, renderer, raycaster, mouse, groundPlane;
+let unitMeshes = new Map(); // Map unit object to mesh
+let projectileMeshes = [];
+let terrainGroup = null;
+const TILE_SIZE_3D = 10;
 
-const aiState = {
-    strategy: 'hold', 
-    buildTarget: null,
-};
+const aiState = { strategy: 'hold', buildTarget: null };
 
 // --- AUDIO ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx, audioEnabled = false;
 const SFX = {
-    init: () => {
-        try {
-            if (!AudioContext) return;
-            if (!audioCtx) audioCtx = new AudioContext();
-            if (audioCtx.state === 'suspended') audioCtx.resume().then(() => audioEnabled = true); else audioEnabled = true;
-        } catch (e) { audioEnabled = false; }
-    },
-    tone: (t, f1, f2, d, v1, v2) => {
-        if (!audioEnabled || isPaused || !audioCtx) return;
-        try {
-            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-            o.connect(g); g.connect(audioCtx.destination); o.type = t;
-            o.frequency.setValueAtTime(f1, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(f2, audioCtx.currentTime+d);
-            g.gain.setValueAtTime(v1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(v2, audioCtx.currentTime+d);
-            o.start(); o.stop(audioCtx.currentTime+d);
-        } catch(e){}
-    },
+    init: () => { try { if (!AudioContext) return; if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume().then(() => audioEnabled = true); else audioEnabled = true; } catch (e) { audioEnabled = false; } },
+    tone: (t, f1, f2, d, v1, v2) => { if (!audioEnabled || isPaused || !audioCtx) return; try { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = t; o.frequency.setValueAtTime(f1, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(f2, audioCtx.currentTime+d); g.gain.setValueAtTime(v1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(v2, audioCtx.currentTime+d); o.start(); o.stop(audioCtx.currentTime+d); } catch(e){} },
     shoot: () => SFX.tone('square', 400, 100, 0.1, 0.05, 0.001),
     tank: () => SFX.tone('sawtooth', 100, 20, 0.2, 0.1, 0.001),
     launch: () => SFX.tone('triangle', 200, 600, 0.3, 0.05, 0),
-    explode: () => {
-        if (!audioEnabled || isPaused || !audioCtx) return;
-        try {
-            const b = audioCtx.createBuffer(1, audioCtx.sampleRate*0.3, audioCtx.sampleRate), d = b.getChannelData(0);
-            for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
-            const n=audioCtx.createBufferSource(), g=audioCtx.createGain();
-            n.buffer=b; n.connect(g); g.connect(audioCtx.destination);
-            g.gain.setValueAtTime(0.1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.3);
-            n.start();
-        } catch(e){}
-    },
-    nuke: () => {
-        if (!audioEnabled || isPaused || !audioCtx) return;
-        try {
-            const b=audioCtx.createBuffer(1, audioCtx.sampleRate*4, audioCtx.sampleRate), d=b.getChannelData(0);
-            for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(audioCtx.sampleRate*0.8));
-            const n=audioCtx.createBufferSource(), g=audioCtx.createGain(); n.buffer=b; n.connect(g); g.connect(audioCtx.destination);
-            g.gain.setValueAtTime(0.5, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+4); n.start();
-        } catch(e){}
-    }
+    explode: () => { if (!audioEnabled || isPaused || !audioCtx) return; try { const b = audioCtx.createBuffer(1, audioCtx.sampleRate*0.3, audioCtx.sampleRate), d = b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(), g=audioCtx.createGain(); n.buffer=b; n.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.3); n.start(); } catch(e){} },
+    nuke: () => { if (!audioEnabled || isPaused || !audioCtx) return; try { const b=audioCtx.createBuffer(1, audioCtx.sampleRate*4, audioCtx.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(audioCtx.sampleRate*0.8)); const n=audioCtx.createBufferSource(), g=audioCtx.createGain(); n.buffer=b; n.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.5, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+4); n.start(); } catch(e){} }
 };
 
-// --- PATHFINDING ---
+// --- LOGIC ---
 class Node { constructor(x, y, p, g, h) { this.x=x; this.y=y; this.p=p; this.g=g; this.h=h; this.f=g+h; } }
 function findPath(unit, tx, ty) {
+    // FIX: Round inputs to avoid infinite loop with float coords
+    tx = Math.round(tx); ty = Math.round(ty);
+
     if (tx < 0 || tx >= CONFIG.gridCols || ty < 0 || ty >= CONFIG.gridRows) return [];
     if (unit.type === 'air') return [{x: tx, y: ty}];
     if (GRID[ty] && GRID[ty][tx] === 1) return [];
-    
     const startX = Math.round(unit.x), startY = Math.round(unit.y);
     const open = [new Node(startX, startY, null, 0, Math.abs(tx-startX) + Math.abs(ty-startY))];
     const closed = new Set();
     let iters = 0;
-
     while (open.length > 0) {
-        iters++;
-        if (iters > 500) return []; 
-
+        iters++; if (iters > 500) return [];
         let curr = open[0], idx = 0;
         for (let i=1; i<open.length; i++) if (open[i].f < curr.f) { curr = open[i]; idx = i; }
-        open.splice(idx, 1);
-        closed.add(`${curr.x},${curr.y}`);
-
-        if (curr.x === tx && curr.y === ty) {
-            const path = [];
-            while(curr.p) { path.unshift({x: curr.x, y: curr.y}); curr = curr.p; }
-            return path;
-        }
-
+        open.splice(idx, 1); closed.add(`${curr.x},${curr.y}`);
+        if (curr.x === tx && curr.y === ty) { const path = []; while(curr.p) { path.unshift({x: curr.x, y: curr.y}); curr = curr.p; } return path; }
         const neighbors = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
         for (let n of neighbors) {
             const nx = curr.x + n.x, ny = curr.y + n.y;
@@ -372,68 +316,21 @@ function findPath(unit, tx, ty) {
     return [];
 }
 
-class MushroomCloud {
-    constructor(x, y) { this.x = x; this.y = y; this.life = 300; this.maxLife = 300; }
-    update() { this.life--; }
-    draw(ctx, sx, sy, scale) {
-        const progress = 1 - (this.life / this.maxLife);
-        const ts = scale;
-        const stemWidth = Math.max(0, ts * 0.5 * Math.min(progress * 5, 1));
-        const stemHeight = Math.max(0, ts * 3 * Math.min(progress * 2, 1));
-        const capRadius = Math.max(0, ts * 1.5 * Math.min(progress * 3, 1) + (Math.sin(Date.now()/100) * 5));
-
-        // Use Screen Coordinates
-        const cx = sx;
-        const cy = sy;
-
-        let cInner, cOuter;
-        if (progress < 0.2) { cInner = '#fff'; cOuter = '#ff0'; } else if (progress < 0.5) { cInner = '#ff0'; cOuter = '#f00'; } else if (progress < 0.8) { cInner = '#f40'; cOuter = '#333'; } else { cInner = '#333'; cOuter = '#000'; }
-        ctx.globalAlpha = Math.min(this.life / 60, 1);
-        try {
-            const grdStem = ctx.createLinearGradient(cx, cy, cx, cy - stemHeight);
-            grdStem.addColorStop(0, cOuter); grdStem.addColorStop(1, cInner);
-            ctx.fillStyle = grdStem; ctx.beginPath(); ctx.ellipse(cx, cy - stemHeight/2, stemWidth/2, stemHeight/2, 0, 0, Math.PI*2); ctx.fill();
-            const grdCap = ctx.createRadialGradient(cx, cy - stemHeight, 0, cx, cy - stemHeight, capRadius);
-            grdCap.addColorStop(0, cInner); grdCap.addColorStop(0.5, cOuter); grdCap.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = grdCap; ctx.beginPath(); ctx.arc(cx, cy - stemHeight, capRadius, 0, Math.PI*2); ctx.fill();
-        } catch(e) { ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(cx, cy, ts, 0, Math.PI*2); ctx.fill(); }
-        ctx.globalAlpha = 1;
-    }
-}
-
-// --- LOGIC ---
-function generateMap() {
-    GRID = [];
-    const cols = CONFIG.gridCols, rows = CONFIG.gridRows, cx = Math.floor(cols/2), cy = Math.floor(rows/2);
-    for (let r = 0; r < rows; r++) GRID.push(new Array(cols).fill(0));
-    GRID[0][cx] = 4; // Player -1 (enemy) base
-    GRID[rows-1][cx] = 4; // Player 1 (player) base
-    [{r:4,c:2}, {r:4,c:cols-3}, {r:cy,c:cx}, {r:rows-5,c:2}, {r:rows-5,c:cols-3}].forEach(p => GRID[p.r][p.c] = 3);
-    [{r:1,c:1}, {r:1,c:cols-2}, {r:rows-2,c:1}, {r:rows-2,c:cols-2}, {r:cy,c:1}, {r:cy,c:cols-2}].forEach(p => GRID[p.r][p.c] = 2);
-    for (let r = 2; r < Math.floor(rows/2); r++) {
-        for (let c = 1; c < cols - 1; c++) {
-            if (GRID[r][c] === 0 && (Math.abs(c - cx) > 1 || r >= 4) && Math.random() < 0.2) {
-                GRID[r][c] = 1; GRID[r][cols-1-c] = 1; GRID[rows-1-r][c] = 1; GRID[rows-1-r][cols-1-c] = 1;
-            }
-        }
-    }
-    // Re-generate 3D Terrain
-    if (scene) generateTerrain3D();
-}
-
 class Unit {
     constructor(k, o, x, y) {
         const d = DB[k];
         this.key=k; this.owner=o; this.x=x; this.y=y; this.tx=x; this.ty=y; this.vx=x; this.vy=y;
         this.hp=d.hp; this.maxHp=d.hp; this.dmg=d.dmg; this.spd=d.spd; this.rng=d.rng; this.cd=0; this.cdMax=d.cd;
         this.type=d.type; this.proj=d.proj; this.mods=d.mods; this.harvest=d.harvest;
-        this.state='idle'; this.path=[];
-        this.recoil = 0; this.attackAngle = 0;
+        this.state='idle'; this.path=[]; this.recoil = 0; this.attackAngle = 0; this.hoverOffset = 0;
     }
     update() {
         if (this.cd > 0) this.cd--;
-        this.recoil = Math.max(0, this.recoil - 0.5); 
+        this.recoil = Math.max(0, this.recoil - 0.5);
+        if(this.type === 'air') this.hoverOffset = Math.sin(Date.now() / 300) * 0.1;
+
         this.vx += (this.x - this.vx)*0.1; this.vy += (this.y - this.vy)*0.1;
+
         if (this.state === 'move') {
             if (this.path.length > 0) {
                 const n = this.path[0], dx = n.x - this.x, dy = n.y - this.y, dist = Math.sqrt(dx*dx + dy*dy);
@@ -441,20 +338,15 @@ class Unit {
                 else { this.x=n.x; this.y=n.y; this.path.shift(); }
             } else {
                 this.state = 'idle';
-                // Auto Harvest
                 if (this.harvest && GRID[Math.round(this.y)] && GRID[Math.round(this.y)][Math.round(this.x)] === 2) this.state='harvest';
             }
         } else if (this.state === 'idle') {
             const t = this.findTarget();
             if (t && Math.hypot(this.x-t.x, this.y-t.y) <= this.rng) this.attack(t);
-            // Auto Harvest Seek
-            if (this.harvest && GRID[Math.round(this.y)] && GRID[Math.round(this.y)][Math.round(this.x)] === 2) this.state='harvest';
-            else if (this.harvest && !this.path.length) {
+            if (this.harvest && !this.path.length) {
                 const nearestTib = findNearestTile(this.x, this.y, 2);
                 if (nearestTib) this.setPath(nearestTib.x, nearestTib.y);
             }
-        } else if (this.state === 'harvest') {
-            // Harvesting logic handled in global loop income
         }
     }
     setPath(tx, ty) { this.path = findPath(this, tx, ty); if (this.path.length > 0) this.state='move'; }
@@ -463,16 +355,13 @@ class Unit {
         units.forEach(u => {
             if (u.owner !== this.owner && Math.hypot(this.x - u.x, this.y - u.y) <= this.rng) {
                 let m = (this.mods[u.key] !== undefined) ? this.mods[u.key] : (this.mods[u.type] || 1);
-                // m=0 check ensures tank doesn't target air
                 if (m > 0 && this.dmg * m > 1 && this.dmg * m > max) { max = this.dmg * m; t = u; }
             }
         });
-
         if (!t) {
-            const enemyBase = baseCoordinates[this.owner * -1];
-            if (Math.hypot(this.x - enemyBase.x, this.y - enemyBase.y) <= this.rng && (this.mods.building || 0) > 0) {
-                t = { isBase: true, x: enemyBase.x, y: enemyBase.y, owner: this.owner * -1, type: 'building', vx: enemyBase.x, vy: enemyBase.y };
-            }
+            const eb = baseCoordinates[this.owner * -1];
+            if (Math.hypot(this.x - eb.x, this.y - eb.y) <= this.rng && (this.mods.building || 0) > 0)
+                t = { isBase: true, x: eb.x, y: eb.y, owner: this.owner * -1, type: 'building', vx: eb.x, vy: eb.y };
         }
         return t;
     }
@@ -482,56 +371,163 @@ class Unit {
         this.recoil = 5;
         this.attackAngle = Math.atan2(t.y - this.y, t.x - this.x);
         let m = (this.mods[t.key] !== undefined) ? this.mods[t.key] : (this.mods[t.type] || 1);
-
-        const projSpeed = 0.08;
-
         if (this.proj === 'missile') {
             SFX.launch();
-            addParticles(this.vx, this.vy, 3, '#fff');
-            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this });
+            addParticles(this.vx, this.vy, 5, 'flash');
+            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this, trailTimer: 0 });
         } else {
             if (this.key === 'tank') SFX.tank(); else SFX.shoot();
-            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: projSpeed, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
+            addParticles(this.vx + Math.cos(this.attackAngle)*0.4, this.vy + Math.sin(this.attackAngle)*0.4, 3, 'flash');
+            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: 0.15, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
         }
     }
     takeDamage(a, attacker) { 
-        this.hp -= a; 
+        this.hp -= a;
+        addParticles(this.vx, this.vy, 2, 'spark');
+        if (this.hp < this.maxHp * 0.5 && Math.random() < 0.1) addParticles(this.vx, this.vy, 1, 'smoke');
         
-        // REACTION LOGIC: Stop to fight, or retreat if impossible
         if (attacker && units.includes(attacker)) {
             const dist = Math.hypot(this.x - attacker.x, this.y - attacker.y);
-            // Check if I can hurt them
             let myMod = (this.mods[attacker.key] !== undefined) ? this.mods[attacker.key] : (this.mods[attacker.type] || 0);
-            const canHit = (myMod * this.dmg) > 1;
-            const inRange = dist <= this.rng;
-
-            if (canHit && inRange) {
-                // STOP AND FIGHT
-                this.path = [];
-                this.state = 'idle';
-            } else {
-                // IMPOSSIBLE TO FIGHT: RETREAT
-                // Calculate retreat vector (away from attacker)
-                const retreatDist = 4;
+            if ((myMod * this.dmg) > 1 && dist <= this.rng) { this.path = []; this.state = 'idle'; }
+            else {
                 const angle = Math.atan2(this.y - attacker.y, this.x - attacker.x);
-                let rx = this.x + Math.cos(angle) * retreatDist;
-                let ry = this.y + Math.sin(angle) * retreatDist;
-                // Clamp to grid
-                rx = Math.max(0, Math.min(CONFIG.gridCols - 1, rx));
-                ry = Math.max(0, Math.min(CONFIG.gridRows - 1, ry));
-                this.setPath(rx, ry);
+                let rx = Math.max(0, Math.min(CONFIG.gridCols-1, this.x + Math.cos(angle) * 4));
+                let ry = Math.max(0, Math.min(CONFIG.gridRows-1, this.y + Math.sin(angle) * 4));
+                // FIX: Round retreat coordinates
+                this.setPath(Math.round(rx), Math.round(ry));
             }
-        } else {
-            // Unknown attacker or already dead, just stop moving if taking damage
-            if (this.state === 'move') {
-                this.path = [];
-                this.state = 'idle';
+        } else if (this.state === 'move') { this.path = []; this.state = 'idle'; }
+
+        if (this.hp <= 0) {
+            units = units.filter(u => u !== this); if (selectedUnit===this) selectedUnit=null;
+            addParticles(this.vx, this.vy, 10, 'explode');
+            debris.push({x:this.vx, y:this.vy, type: this.key, rot: Math.random()*6});
+            if(debris.length > 20) debris.shift();
+        }
+    }
+}
+
+class MushroomCloud {
+    constructor(x, y) { this.x = x; this.y = y; this.life = 300; this.maxLife = 300; }
+    update() { this.life--; }
+    draw(ctx, ts) {
+        const progress = 1 - (this.life / this.maxLife);
+        const stemWidth = Math.max(0, ts * 0.5 * Math.min(progress * 5, 1));
+        const stemHeight = Math.max(0, ts * 3 * Math.min(progress * 2, 1));
+        const capRadius = Math.max(0, ts * 1.5 * Math.min(progress * 3, 1) + (Math.sin(Date.now()/100) * 5));
+        const cx = this.x * ts + ts/2, cy = this.y * ts + ts/2;
+        let cInner = progress < 0.2 ? '#fff' : (progress < 0.5 ? '#ff0' : '#f40');
+        let cOuter = progress < 0.2 ? '#ff0' : (progress < 0.5 ? '#f00' : '#333');
+        ctx.globalAlpha = Math.min(this.life / 60, 1);
+        const grdStem = ctx.createLinearGradient(cx, cy, cx, cy - stemHeight);
+        grdStem.addColorStop(0, cOuter); grdStem.addColorStop(1, cInner);
+        ctx.fillStyle = grdStem; ctx.beginPath(); ctx.ellipse(cx, cy - stemHeight/2, stemWidth/2, stemHeight/2, 0, 0, Math.PI*2); ctx.fill();
+        const grdCap = ctx.createRadialGradient(cx, cy - stemHeight, 0, cx, cy - stemHeight, capRadius);
+        grdCap.addColorStop(0, cInner); grdCap.addColorStop(0.5, cOuter); grdCap.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grdCap; ctx.beginPath(); ctx.arc(cx, cy - stemHeight, capRadius, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+function generateMap() {
+    GRID = [];
+    const cols = CONFIG.gridCols, rows = CONFIG.gridRows, cx = Math.floor(cols/2), cy = Math.floor(rows/2);
+    for (let r = 0; r < rows; r++) GRID.push(new Array(cols).fill(0));
+    GRID[0][cx] = 4; GRID[rows-1][cx] = 4;
+    [{r:4,c:2}, {r:4,c:cols-3}, {r:cy,c:cx}, {r:rows-5,c:2}, {r:rows-5,c:cols-3}].forEach(p => GRID[p.r][p.c] = 3);
+    [{r:1,c:1}, {r:1,c:cols-2}, {r:rows-2,c:1}, {r:rows-2,c:cols-2}, {r:cy,c:1}, {r:cy,c:cols-2}].forEach(p => GRID[p.r][p.c] = 2);
+    for (let r = 2; r < Math.floor(rows/2); r++) {
+        for (let c = 1; c < cols - 1; c++) {
+            if (GRID[r][c] === 0 && (Math.abs(c - cx) > 1 || r >= 4) && Math.random() < 0.2) {
+                GRID[r][c] = 1; GRID[r][cols-1-c] = 1; GRID[rows-1-r][c] = 1; GRID[rows-1-r][cols-1-c] = 1;
             }
         }
-
-        particles.push({x:this.vx, y:this.vy, l:15, c:'#fa0'});
-        if (this.hp <= 0) { units = units.filter(u => u !== this); if (selectedUnit===this) selectedUnit=null; particles.push({x:this.vx, y:this.vy, l:20, c:'#fff'}); }
     }
+    createTerrain();
+}
+
+function createTerrain() {
+    if (!scene) return;
+    if (terrainGroup) scene.remove(terrainGroup);
+    terrainGroup = new THREE.Group();
+
+    // Ground
+    const geometry = new THREE.PlaneGeometry(CONFIG.gridCols * TILE_SIZE_3D, CONFIG.gridRows * TILE_SIZE_3D);
+    const material = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    groundPlane = new THREE.Mesh(geometry, material); // Save to global for raycasting
+    groundPlane.rotation.x = -Math.PI / 2;
+    groundPlane.position.set((CONFIG.gridCols * TILE_SIZE_3D) / 2, -0.1, (CONFIG.gridRows * TILE_SIZE_3D) / 2);
+    groundPlane.receiveShadow = true;
+    terrainGroup.add(groundPlane);
+
+    // Grid Lines
+    const gridHelper = new THREE.GridHelper(Math.max(CONFIG.gridCols, CONFIG.gridRows) * TILE_SIZE_3D, Math.max(CONFIG.gridCols, CONFIG.gridRows), 0x004400, 0x002200);
+    gridHelper.position.set((CONFIG.gridCols * TILE_SIZE_3D) / 2, 0.01, (CONFIG.gridRows * TILE_SIZE_3D) / 2);
+    // Align grid helper to match tile size
+    gridHelper.scale.set(CONFIG.gridCols/Math.max(CONFIG.gridCols, CONFIG.gridRows), 1, CONFIG.gridRows/Math.max(CONFIG.gridCols, CONFIG.gridRows));
+    // Re-create grid helper manually to be exact
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x003300, opacity: 0.3, transparent: true });
+    const gridGeo = new THREE.BufferGeometry();
+    const vertices = [];
+    for(let i=0; i<=CONFIG.gridCols; i++) {
+        vertices.push(i*TILE_SIZE_3D, 0.05, 0);
+        vertices.push(i*TILE_SIZE_3D, 0.05, CONFIG.gridRows*TILE_SIZE_3D);
+    }
+    for(let i=0; i<=CONFIG.gridRows; i++) {
+        vertices.push(0, 0.05, i*TILE_SIZE_3D);
+        vertices.push(CONFIG.gridCols*TILE_SIZE_3D, 0.05, i*TILE_SIZE_3D);
+    }
+    gridGeo.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    const lines = new THREE.LineSegments(gridGeo, gridMat);
+    terrainGroup.add(lines);
+
+    for (let r = 0; r < CONFIG.gridRows; r++) {
+        for (let c = 0; c < CONFIG.gridCols; c++) {
+            const t = GRID[r][c];
+            const x = c * TILE_SIZE_3D + TILE_SIZE_3D / 2;
+            const z = r * TILE_SIZE_3D + TILE_SIZE_3D / 2;
+
+            if (t === 1) { // Mountain
+                const geo = new THREE.ConeGeometry(TILE_SIZE_3D * 0.5, TILE_SIZE_3D * 0.8, 4);
+                const mat = new THREE.MeshLambertMaterial({ color: 0x333333, flatShading: true });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, TILE_SIZE_3D * 0.4, z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                terrainGroup.add(mesh);
+            } else if (t === 2) { // Tiberium
+                // handled in update for glow? or static here. Static for now.
+                const count = 3 + Math.floor(Math.random()*3);
+                for(let i=0; i<count; i++) {
+                    const h = 2 + Math.random() * 4;
+                    const geo = new THREE.CylinderGeometry(0.5, 1, h, 5);
+                    const mat = new THREE.MeshLambertMaterial({ color: 0x00ff66, emissive: 0x004411 });
+                    const mesh = new THREE.Mesh(geo, mat);
+                    const ox = (Math.random()-0.5)*TILE_SIZE_3D*0.6;
+                    const oz = (Math.random()-0.5)*TILE_SIZE_3D*0.6;
+                    mesh.position.set(x + ox, h/2, z + oz);
+                    mesh.rotation.x = (Math.random()-0.5)*0.5;
+                    mesh.rotation.z = (Math.random()-0.5)*0.5;
+                    terrainGroup.add(mesh);
+                }
+            } else if (t === 3) { // Platform
+                const geo = new THREE.BoxGeometry(TILE_SIZE_3D * 0.8, 1, TILE_SIZE_3D * 0.8);
+                const mat = new THREE.MeshLambertMaterial({ color: 0x444444 });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, 0.5, z);
+                terrainGroup.add(mesh);
+            } else if (t === 4) { // Base Area
+                const geo = new THREE.BoxGeometry(TILE_SIZE_3D * 0.9, 1, TILE_SIZE_3D * 0.9);
+                const mat = new THREE.MeshLambertMaterial({ color: 0x222222 }); // Neutral, colored box will be unit
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(x, 0.5, z);
+                terrainGroup.add(mesh);
+            }
+        }
+    }
+
+    scene.add(terrainGroup);
 }
 
 function findNearestTile(x, y, typeId) {
@@ -548,815 +544,588 @@ function findNearestTile(x, y, typeId) {
 }
 
 function isBaseUnderAttack(playerId) {
-    const DEFENSE_RADIUS = 6;
-    const baseCoord = baseCoordinates[playerId];
-    if (!baseCoord) return false;
-    for (const unit of units) {
-        if (unit.owner !== playerId) {
-            if (Math.hypot(baseCoord.x - unit.x, baseCoord.y - unit.y) <= DEFENSE_RADIUS) return true;
-        }
-    }
-    return false;
+    const coord = baseCoordinates[playerId];
+    return units.some(u => u.owner !== playerId && Math.hypot(coord.x - u.x, coord.y - u.y) <= 6);
 }
 
 function getBestCounter(enemyUnits) {
     if (!enemyUnits || enemyUnits.length === 0) return 'rifle';
-    const counts = {};
-    enemyUnits.forEach(u => counts[u.type] = (counts[u.type] || 0) + 1);
-    const dominant = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-    if (dominant === 'infantry') return 'buggy';
-    if (dominant === 'air') return 'missile';
-    if (dominant === 'vehicle') return 'orca'; 
+    const counts = {}; enemyUnits.forEach(u => counts[u.type] = (counts[u.type] || 0) + 1);
+    const dom = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    if (dom === 'infantry') return 'buggy';
+    if (dom === 'air') return 'missile';
+    if (dom === 'vehicle') return 'orca';
     return 'tank';
 }
 
-// --- MAIN LOOP ---
 function loop(ts) {
     const dt = ts - lastFrameTime; lastFrameTime = ts;
     try {
         if (gameActive && !isPaused) {
             if (isHost) {
-                if (ts % 1000 < 20) { // Income
-                    let i1 = 5, i2 = 5; // Base income
-                    units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=6; else i2+=6; } });
-                    money+=i1; enemyMoney+=i2;
-                }
-                
-                if (!isMultiplayer) { // AI
+                if (ts % 1000 < 20) { let i1=5, i2=5; units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=6; else i2+=6; } }); money+=i1; enemyMoney+=i2; }
+                if (!isMultiplayer) {
                     aiTick++;
                     if (aiTick % 40 === 0) {
                         const aiFunds = aiPlayerId === 1 ? money : enemyMoney;
-                        const myUnits = units.filter(u => u.owner === aiPlayerId);
-                        const enemyUnits = units.filter(u => u.owner !== aiPlayerId);
-                        const baseCoord = baseCoordinates[aiPlayerId];
-                        const enemyBaseCoord = baseCoordinates[aiPlayerId * -1];
-
-                        // 1. Base Defense (Highest Priority)
+                        const myUnits = units.filter(u => u.owner === aiPlayerId), enemyUnits = units.filter(u => u.owner !== aiPlayerId);
+                        const baseCoord = baseCoordinates[aiPlayerId], enemyBaseCoord = baseCoordinates[aiPlayerId * -1];
                         if (isBaseUnderAttack(aiPlayerId)) {
-                            const attackers = enemyUnits.filter(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8);
-                            const primaryThreat = attackers[0] || {x: baseCoord.x, y: baseCoord.y};
-                            myUnits.forEach(u => {
-                                if (!u.harvest && u.state !== 'move') u.setPath(primaryThreat.x, primaryThreat.y);
-                            });
+                            const threat = enemyUnits.find(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8) || {x:baseCoord.x, y:baseCoord.y};
+                            myUnits.forEach(u => { if (!u.harvest && u.state !== 'move') u.setPath(threat.x, threat.y); });
                         } else {
-                            // 2. Economy
                             const harvesters = myUnits.filter(u => u.harvest);
-                            if (harvesters.length < 1 && aiFunds >= DB.harv.cost) {
-                                if (!aiState.buildTarget || aiState.buildTarget !== 'harv') aiState.buildTarget = 'harv';
-                            }
-                            
-                            // 3. Production Decision (Tactical vs Random Aggression)
+                            if (harvesters.length < 1 && aiFunds >= DB.harv.cost && (!aiState.buildTarget || aiState.buildTarget !== 'harv')) aiState.buildTarget = 'harv';
                             if (!aiState.buildTarget) {
-                                if (harvesters.length >= 1) {
-                                    const roll = Math.random();
-                                    // 40% chance to be smart and counter, 60% chance to be aggressive/random
-                                    if (roll < 0.4 && enemyUnits.length > 0) {
-                                        aiState.buildTarget = getBestCounter(enemyUnits);
-                                    } else {
-                                        const combatUnits = ['rifle', 'missile', 'buggy', 'tank', 'orca'];
-                                        aiState.buildTarget = combatUnits[Math.floor(Math.random() * combatUnits.length)];
-                                    }
-                                }
+                                if (harvesters.length >= 1) aiState.buildTarget = (Math.random()<0.4 && enemyUnits.length>0) ? getBestCounter(enemyUnits) : ['rifle','missile','buggy','tank','orca'][Math.floor(Math.random()*5)];
                             }
-                            
-                            // Execute Build
-                            if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) {
-                                buyUnit(aiState.buildTarget, aiPlayerId);
-                                aiState.buildTarget = null;
-                            }
-
-                            // 4. Unit Command (Split duties: Platforms vs Attack)
+                            if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) { buyUnit(aiState.buildTarget, aiPlayerId); aiState.buildTarget = null; }
                             const fighters = myUnits.filter(u => !u.harvest);
-                            const platforms = [];
-                            for(let r=0; r<CONFIG.gridRows; r++) for(let c=0; c<CONFIG.gridCols; c++) if (GRID[r][c] === 3) platforms.push({x:c, y:r});
-                            const claimedUnits = new Set();
-
-                            // A. Fill Platforms (1 unit per platform)
+                            const platforms = []; for(let r=0; r<CONFIG.gridRows; r++) for(let c=0; c<CONFIG.gridCols; c++) if (GRID[r][c] === 3) platforms.push({x:c, y:r});
+                            const claimed = new Set();
                             platforms.forEach(p => {
-                                let closest = null, minD = Infinity;
-                                fighters.forEach(u => {
-                                    if (!claimedUnits.has(u)) {
-                                        const d = Math.hypot(u.x - p.x, u.y - p.y);
-                                        if (d < minD) { minD = d; closest = u; }
-                                    }
-                                });
-                                if (closest) {
-                                    claimedUnits.add(closest);
-                                    if (minD > 0.5) closest.setPath(p.x, p.y);
-                                }
+                                let closest=null, minD=Infinity;
+                                fighters.forEach(u => { if (!claimed.has(u)) { const d = Math.hypot(u.x - p.x, u.y - p.y); if (d < minD) { minD = d; closest = u; } } });
+                                if (closest) { claimed.add(closest); if (minD > 0.5) closest.setPath(p.x, p.y); }
                             });
-
-                            // B. Attack (Everyone else) - SMART SEARCH AND DESTROY
                             fighters.forEach(u => {
-                                if (!claimedUnits.has(u) && u.state === 'idle') {
-                                    // CRITICAL CHECK: Do not move if currently shooting!
-                                    // u.findTarget returns a valid target object if one is found AND is in range.
-                                    // If we have a target in range, let the unit fight.
-                                    const currentTarget = u.findTarget();
-                                    if (currentTarget) {
-                                        return; // Busy attacking, don't move
-                                    }
-
-                                    // Otherwise, find the NEAREST enemy unit or base
-                                    let nearest = null;
-                                    let minD = Infinity;
-                                    
-                                    // Check all enemy units
-                                    enemyUnits.forEach(e => {
-                                        const d = Math.hypot(u.x - e.x, u.y - e.y);
-                                        if (d < minD) { minD = d; nearest = e; }
-                                    });
-
-                                    // Compare with enemy base
+                                if (!claimed.has(u) && u.state === 'idle') {
+                                    if (u.findTarget()) return;
+                                    let nearest=null, minD=Infinity;
+                                    enemyUnits.forEach(e => { const d = Math.hypot(u.x - e.x, u.y - e.y); if (d < minD) { minD = d; nearest = e; } });
                                     const dBase = Math.hypot(u.x - enemyBaseCoord.x, u.y - enemyBaseCoord.y);
-                                    
-                                    if (dBase < minD || !nearest) {
-                                        // Base is closer or no units found
-                                        u.setPath(enemyBaseCoord.x, enemyBaseCoord.y);
-                                    } else {
-                                        // Enemy unit is closer, hunt it down
-                                        u.setPath(nearest.x, nearest.y);
-                                    }
+                                    u.setPath((dBase < minD || !nearest) ? enemyBaseCoord.x : nearest.x, (dBase < minD || !nearest) ? enemyBaseCoord.y : nearest.y);
                                 }
                             });
                         }
                     }
                 }
-
-                // Missile
                 if (!mushroomCloud && !projectiles.some(p => p.t === 'nuke')) {
-                    let p1=0, p2=0;
-                    for(let r=0; r<CONFIG.gridRows; r++) for(let c=0; c<CONFIG.gridCols; c++) 
-                        if (GRID[r] && GRID[r][c]===3) { const u = units.find(u => Math.round(u.x)===c && Math.round(u.y)===r); if(u){ if(u.owner===1) p1++; if(u.owner===-1) p2++; } }
+                    let p1=0, p2=0; units.forEach(u => { const t = GRID[Math.round(u.y)]?.[Math.round(u.x)]; if (t===3) { if(u.owner===1) p1++; else p2++; } });
                     const bar = document.getElementById('missile-fill');
                     if (p1 > p2) { missileVal += 0.083; bar.style.background = CONFIG.colors.p; }
                     else if (p2 > p1) { missileVal += 0.083; bar.style.background = CONFIG.colors.e; }
                     else bar.style.background = '#555';
-                    
-                    if (missileVal >= 100) {
-                        missileVal = 0;
-                        const w = p1 > p2 ? 1 : -1;
-                        projectiles.push({t:'nuke', x:5.5, y:7.5, tx:5.5, ty:w===1?0:14, s:0.005, o:w});
-                    }
+                    if (missileVal >= 100) { missileVal = 0; const w = p1 > p2 ? 1 : -1; projectiles.push({t:'nuke', x:5.5, y:7.5, tx:5.5, ty:w===1?0:14, s:0.005, o:w}); }
                     bar.style.width = Math.min(missileVal, 100) + '%';
                 }
-
-                // Updates
                 units.forEach(u => u.update());
                 projectiles = projectiles.filter(p => {
                     if (p.t === 'nuke') {
                         const d = Math.hypot(p.tx-p.x, p.ty-p.y);
                         if (d < p.s) { SFX.nuke(); mushroomCloud=new MushroomCloud(p.tx, p.ty); if(p.o===1) bases.e /= 2; else bases.p /= 2; updateHP(); return false; }
-                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s;
-                        if(Math.random()>0.1) particles.push({x:p.x, y:p.y, l:30, c:'#ff0'});
-                        return true;
+                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s; if(Math.random()>0.1) addParticles(p.x, p.y, 1, 'flash'); return true;
                     }
-
                     const targetAlive = p.tar && (p.tar.isBase || units.includes(p.tar));
-
                     if (p.t === 'missile') {
                         if (targetAlive) { p.tx = p.tar.vx; p.ty = p.tar.vy; }
                         const d = Math.hypot(p.tx - p.x, p.ty - p.y);
-                        if (d < p.s) {
-                            if (targetAlive) {
-                                if (p.tar.isBase) {
-                                    const baseKey = p.o === 1 ? 'e' : 'p';
-                                    bases[baseKey] = Math.max(0, bases[baseKey] - p.dmg);
-                                    updateHP();
-                                } else {
-                                    // Pass attacker to takeDamage
-                                    p.tar.takeDamage(p.dmg, p.attacker);
-                                }
-                            }
-                            SFX.explode(); addParticles(p.x, p.y, 6, 'orange');
-                            return false;
-                        }
-                        p.x += (p.tx - p.x) / d * p.s; p.y += (p.ty - p.y) / d * p.s;
-                        p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
-                        if (Math.random() > 0.3) particles.push({ x: p.x, y: p.y, l: 10, c: '#aaa', size: 0.1 });
+                        if (d < p.s) { if (targetAlive) { if (p.tar.isBase) { const k = p.o===1?'e':'p'; bases[k] = Math.max(0, bases[k]-p.dmg); updateHP(); } else p.tar.takeDamage(p.dmg, p.attacker); } SFX.explode(); addParticles(p.x, p.y, 5, 'explode'); return false; }
+                        p.x += (p.tx - p.x) / d * p.s; p.y += (p.ty - p.y) / d * p.s; p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+                        p.trailTimer++; if(p.trailTimer%3===0) addParticles(p.x, p.y, 1, 'smoke');
                         return true;
                     }
-
                     if (p.t === 'bullet') {
                         if (!targetAlive) return false;
-                        const tx = p.tar.vx, ty = p.tar.vy;
-                        const d = Math.hypot(tx - p.x, ty - p.y);
-
-                        if (d < p.s) {
-                            if (p.tar.isBase) {
-                                const baseKey = p.o === 1 ? 'e' : 'p';
-                                bases[baseKey] = Math.max(0, bases[baseKey] - p.dmg);
-                                updateHP();
-                            } else {
-                                // Pass attacker to takeDamage
-                                p.tar.takeDamage(p.dmg, p.attacker);
-                            }
-                            particles.push({ x: p.x, y: p.y, l: 15, c: '#fa0' });
-                            return false;
-                        }
-
-                        p.x += (tx - p.x) / d * p.s;
-                        p.y += (ty - p.y) / d * p.s;
-                        p.angle = Math.atan2(ty - p.y, tx - p.x);
+                        const tx = p.tar.vx, ty = p.tar.vy, d = Math.hypot(tx - p.x, ty - p.y);
+                        if (d < p.s) { if (targetAlive) { if (p.tar.isBase) { const k = p.o===1?'e':'p'; bases[k] = Math.max(0, bases[k]-p.dmg); updateHP(); } else p.tar.takeDamage(p.dmg, p.attacker); } return false; }
+                        p.x += (tx - p.x) / d * p.s; p.y += (ty - p.y) / d * p.s; p.angle = Math.atan2(ty - p.y, tx - p.x);
                         return true;
                     }
-
                     return false;
                 });
-
-                if (isMultiplayer && conn) {
-                    const clientSide = -myPlayerId;
-                    const clientMoney = clientSide === 1 ? money : enemyMoney;
-                    const hostMoney = clientSide === 1 ? enemyMoney : money;
-                    conn.send({ type:'state', u:units.map(u=>({k:u.key, o:u.owner, x:u.x, y:u.y, vx:u.vx, vy:u.vy, h:u.hp, s:u.state, r:u.recoil, aa:u.attackAngle})), p:projectiles, m1:clientMoney, m2:hostMoney, b:bases, v:missileVal, nk:mushroomCloud });
-                }
+                if (isMultiplayer && conn) conn.send({ type:'state', u:units.map(u=>({k:u.key, o:u.owner, x:u.x, y:u.y, vx:u.vx, vy:u.vy, h:u.hp, s:u.state, r:u.recoil, aa:u.attackAngle, ho:u.hoverOffset})), p:projectiles, m1:(myPlayerId===1?money:enemyMoney), m2:(myPlayerId===1?enemyMoney:money), b:bases, v:missileVal, nk:mushroomCloud });
             }
-
-            // Client State Sync (visuals only) is handled in network receive
-            particles = particles.filter(p => { p.l--; return p.l>0; });
-            if (mushroomCloud) {
-                mushroomCloud.update();
-                if (mushroomCloud.life <= 0) mushroomCloud = null;
-            }
-
+            particles = particles.filter(p => { p.l--; p.x+=p.vx; p.y+=p.vy; return p.l>0; });
+            if (mushroomCloud) { mushroomCloud.update(); if (mushroomCloud.life <= 0) mushroomCloud = null; }
             if (gameActive) {
-                const playerBaseHp = myPlayerId === 1 ? bases.p : bases.e;
-                const enemyBaseHp = myPlayerId === 1 ? bases.e : bases.p;
-                if (playerBaseHp <= 0) {
-                    endGame('DEFEAT');
-                } else if (enemyBaseHp <= 0) {
-                    endGame('VICTORY');
-                }
+                const php = myPlayerId===1?bases.p:bases.e, ehp=myPlayerId===1?bases.e:bases.p;
+                if (php <= 0) endGame('DEFEAT'); else if (ehp <= 0) endGame('VICTORY');
             }
-
             if (spawnFlash > 0) spawnFlash--;
-            
             const myFunds = myPlayerId === 1 ? money : enemyMoney;
             document.getElementById('money-display').innerText = Math.floor(myFunds);
-            document.querySelectorAll('.card').forEach(b => {
-                if (myFunds < b.dataset.cost) b.classList.add('disabled'); else b.classList.remove('disabled');
-            });
+            document.querySelectorAll('.card').forEach(b => { if (myFunds < b.dataset.cost) b.classList.add('disabled'); else b.classList.remove('disabled'); });
         }
-        draw();
-    } catch(e) { console.log(e); }
+        update3D();
+        renderer.render(scene, camera);
+        drawHUD();
+    } catch(e) { console.error(e); }
     requestAnimationFrame(loop);
 }
 
-// --- 3D RENDERING SYSTEM ---
-function init3D() {
-    const canvas3D = document.getElementById('gameCanvas');
-    hudCanvas = document.getElementById('hudCanvas');
-    hudCtx = hudCanvas.getContext('2d');
+function drawHUD() {
+    if (!hudCanvas) return;
+    hudCtx.clearRect(0,0,hudCanvas.width, hudCanvas.height);
 
-    // Setup Scene
-    scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050505);
-    scene.fog = new THREE.Fog(0x050505, 20, 100);
+    // Project 3D points to 2D
+    const project = (x, y, z) => {
+        const v = new THREE.Vector3(x, y, z);
+        v.project(camera);
+        return {
+            x: (v.x * 0.5 + 0.5) * hudCanvas.width,
+            y: (-v.y * 0.5 + 0.5) * hudCanvas.height
+        };
+    };
 
-    // Camera
-    const aspect = window.innerWidth / window.innerHeight;
-    camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
-    updateCameraPosition();
+    const ts = TILE_SIZE_3D;
 
-    // Renderer
-    renderer = new THREE.WebGLRenderer({ canvas: canvas3D, antialias: true });
-    renderer.shadowMap.enabled = true;
-    renderer.setSize(window.innerWidth, window.innerHeight);
+    // Base HP bars (Static locations)
+    [0, CONFIG.gridRows-1].forEach(r => {
+        const c = Math.floor(CONFIG.gridCols/2);
+        const o = r < 2 ? -1 : 1;
+        if(GRID[r][c] === 4) {
+             const bx = c*ts + ts/2, by = r*ts + ts/2;
+             const p = project(bx, 10, by); // HP bar floating above
+             const hp = o===1 ? bases.p : bases.e;
+             const width = 60;
+             hudCtx.fillStyle = '#000'; hudCtx.fillRect(p.x - width/2, p.y, width, 6);
+             hudCtx.fillStyle = o===1?'#0f0':'#f00'; hudCtx.fillRect(p.x - width/2, p.y, width * (hp/2000), 6);
+        }
+    });
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
-    scene.add(ambientLight);
+    units.forEach(u => {
+        const x = u.vx*ts + ts/2, z = u.vy*ts + ts/2;
+        const pos = project(x, 0, z);
+        const top = project(x, 4, z); // Above unit
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(50, 100, 50);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
-}
-
-function generateTerrain3D() {
-    if (terrainGroup) scene.remove(terrainGroup);
-    terrainGroup = new THREE.Group();
-
-    // Base Plane for Raycasting
-    const totalW = CONFIG.gridCols * TILE_SIZE_3D;
-    const totalH = CONFIG.gridRows * TILE_SIZE_3D;
-    const planeGeo = new THREE.PlaneGeometry(totalW, totalH);
-    planeGeo.rotateX(-Math.PI / 2);
-    planeGeo.translate(totalW/2 - TILE_SIZE_3D/2, 0, totalH/2 - TILE_SIZE_3D/2); // Center alignment adjustment?
-    // Actually, let's align 0,0 to grid 0,0.
-    // Grid 0,0 is top-left in 2D? No, array indices.
-    // Let's map grid (c, r) to x = c * TS, z = r * TS.
-    // Plane center should be at (cols*TS/2 - TS/2, 0, rows*TS/2 - TS/2)
-    // Actually easiest is to just use a Raycaster on a mathematical plane, but a mesh is fine.
-    // Let's rebuild the plane geometry to match the grid bounds exactly.
-    // Grid spans from x=0 to x=cols*TS, z=0 to z=rows*TS.
-    const groundGeo = new THREE.PlaneGeometry(totalW, totalH);
-    groundGeo.rotateX(-Math.PI / 2);
-    groundGeo.translate(totalW / 2 - TILE_SIZE_3D/2, -0.1, totalH / 2 - TILE_SIZE_3D/2); // Slightly below 0
-
-    const groundMat = new THREE.MeshLambertMaterial({ color: 0x111111 });
-    const ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.receiveShadow = true;
-    terrainGroup.add(ground);
-    planeGeometry = ground; // Reference for raycast
-
-    // Grid Visuals
-    const gridHelper = new THREE.GridHelper(Math.max(totalW, totalH), Math.max(CONFIG.gridCols, CONFIG.gridRows), 0x222222, 0x222222);
-    gridHelper.position.set(totalW/2 - TILE_SIZE_3D/2, 0, totalH/2 - TILE_SIZE_3D/2);
-    terrainGroup.add(gridHelper);
-
-    // Tiles
-    for(let r=0; r<CONFIG.gridRows; r++) {
-        for(let c=0; c<CONFIG.gridCols; c++) {
-            const x = c * TILE_SIZE_3D;
-            const z = r * TILE_SIZE_3D;
-            const type = GRID[r][c];
-
-            if (type === 1) { // Mountain
-                const geo = new THREE.BoxGeometry(TILE_SIZE_3D, TILE_SIZE_3D, TILE_SIZE_3D);
-                const mat = new THREE.MeshLambertMaterial({ color: 0x444444 });
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set(x, TILE_SIZE_3D/2, z);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                terrainGroup.add(mesh);
-            } else if (type === 2) { // Tiberium
-                const geo = new THREE.ConeGeometry(TILE_SIZE_3D * 0.3, TILE_SIZE_3D * 0.6, 6);
-                const mat = new THREE.MeshLambertMaterial({ color: 0x00ff66, emissive: 0x004411 });
-                // Add a few crystals
-                for(let i=0; i<3; i++) {
-                    const mesh = new THREE.Mesh(geo, mat);
-                    mesh.position.set(x + (Math.random()-0.5)*2, 0, z + (Math.random()-0.5)*2);
-                    mesh.scale.setScalar(0.5 + Math.random()*0.5);
-                    mesh.rotation.y = Math.random() * Math.PI;
-                    mesh.rotation.z = (Math.random()-0.5) * 0.5;
-                    terrainGroup.add(mesh);
-                }
-            } else if (type === 3) { // Platform
-                const geo = new THREE.CylinderGeometry(TILE_SIZE_3D * 0.4, TILE_SIZE_3D * 0.45, 0.5, 8);
-                const mat = new THREE.MeshLambertMaterial({ color: 0x555555 });
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set(x, 0.25, z);
-                mesh.receiveShadow = true;
-                terrainGroup.add(mesh);
-
-                // Ring
-                const ringGeo = new THREE.TorusGeometry(TILE_SIZE_3D * 0.35, 0.2, 4, 8);
-                const ringMat = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // Pad color
-                const ring = new THREE.Mesh(ringGeo, ringMat);
-                ring.rotation.x = Math.PI/2;
-                ring.position.set(x, 0.55, z);
-                terrainGroup.add(ring);
-            } else if (type === 4) { // Base
-                const baseOwner = r < 2 ? -1 : 1;
-                const color = baseOwner === 1 ? CONFIG.colors.p : CONFIG.colors.e;
-                const geo = new THREE.BoxGeometry(TILE_SIZE_3D * 1.5, TILE_SIZE_3D, TILE_SIZE_3D * 1.5);
-                const mat = new THREE.MeshLambertMaterial({ color: color });
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set(x, TILE_SIZE_3D/2, z);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                terrainGroup.add(mesh);
+        if (selectedUnit === u) {
+            hudCtx.strokeStyle = '#fff'; hudCtx.lineWidth = 1;
+            hudCtx.beginPath(); hudCtx.arc(pos.x, pos.y, 20, 0, Math.PI*2); hudCtx.stroke();
+            if (u.path.length) {
+                // Draw path in 2D overlay? Or 3D?
+                // Let's do 2D overlay for now
+                hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; hudCtx.setLineDash([4, 4]);
+                hudCtx.beginPath(); hudCtx.moveTo(pos.x, pos.y);
+                u.path.forEach(node => {
+                    const p = project(node.x*ts+ts/2, 0, node.y*ts+ts/2);
+                    hudCtx.lineTo(p.x, p.y);
+                });
+                hudCtx.stroke(); hudCtx.setLineDash([]);
             }
         }
+
+        // HP Bar
+        if (u.hp < u.maxHp || selectedUnit === u) {
+            const w = 30;
+            hudCtx.fillStyle = '#000'; hudCtx.fillRect(top.x - w/2, top.y, w, 4);
+            hudCtx.fillStyle = u.hp > u.maxHp*0.5 ? '#0f0' : '#f00';
+            hudCtx.fillRect(top.x - w/2, top.y, w * (u.hp/u.maxHp), 4);
+        }
+    });
+
+    if (spawnFlash>0) {
+        hudCtx.fillStyle = `rgba(0,255,0,${spawnFlash/20})`;
+        hudCtx.fillRect(0, 0, hudCanvas.width, hudCanvas.height);
     }
-    scene.add(terrainGroup);
 }
 
 function update3D() {
-    // 1. Sync Units
-    const currentUnits = new Set(units);
+    if(!scene) return;
 
-    // Remove dead units
-    for (const [u, mesh] of unitMeshes) {
-        if (!currentUnits.has(u)) {
+    // Manage Unit Meshes
+    // 1. Remove dead units
+    for(let [unit, mesh] of unitMeshes) {
+        if(!units.includes(unit)) {
             scene.remove(mesh);
-            unitMeshes.delete(u);
+            unitMeshes.delete(unit);
         }
     }
 
-    // Add/Update units
+    // 2. Add/Update units
     units.forEach(u => {
         let mesh = unitMeshes.get(u);
-        if (!mesh) {
-            // Create Mesh based on type
-            const color = u.owner === 1 ? CONFIG.colors.p : CONFIG.colors.e;
-            const mat = new THREE.MeshLambertMaterial({ color: color });
-            let geo;
-
-            if (u.type === 'infantry') {
-                geo = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
-            } else if (u.type === 'air') {
-                geo = new THREE.ConeGeometry(0.8, 2, 4); // Orca shape-ish
-                const g = new THREE.Group();
-                const body = new THREE.Mesh(geo, mat);
-                body.rotation.x = Math.PI/2;
-                g.add(body);
-                mesh = g;
-            } else if (u.key === 'tank') {
-                const g = new THREE.Group();
-                const body = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.8, 2), mat);
-                const turret = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.6, 1.2), new THREE.MeshLambertMaterial({color: 0x333333}));
-                turret.position.y = 0.6;
-                const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.5), new THREE.MeshLambertMaterial({color: 0x222222}));
-                barrel.rotation.x = Math.PI/2;
-                barrel.position.set(0, 0.6, 0.6);
-                g.add(body, turret, barrel);
-                mesh = g;
-            } else {
-                // Buggy / Harv / Missile
-                geo = new THREE.BoxGeometry(1.2, 0.8, 1.5);
-            }
-
-            if (!mesh) mesh = new THREE.Mesh(geo, mat);
-
-            // Add ID Ring for debugging or style
+        if(!mesh) {
+            mesh = createUnitMesh(u.key, u.owner === 1 ? 0x44ff44 : 0xff4444);
             scene.add(mesh);
             unitMeshes.set(u, mesh);
         }
 
-        // Update Position
-        const x = u.vx * TILE_SIZE_3D;
-        const z = u.vy * TILE_SIZE_3D;
-        const y = u.type === 'air' ? 3 : 0.5; // Hover height
-        
-        mesh.position.set(x, y, z);
+        const x = u.vx * TILE_SIZE_3D + TILE_SIZE_3D/2;
+        const z = u.vy * TILE_SIZE_3D + TILE_SIZE_3D/2;
 
-        // Update Rotation (face movement or target)
-        if (u.type !== 'building') {
-            if (u.attackAngle !== 0 && u.recoil > 0) {
-                 // Facing target
-                 mesh.rotation.y = -u.attackAngle + Math.PI/2; // Adjust for 3D coord system
-            } else {
-                 // Face movement
-                 if (u.path.length > 0) {
-                    const next = u.path[0];
-                    const angle = Math.atan2(next.y - u.y, next.x - u.x);
-                    mesh.rotation.y = -angle + Math.PI/2;
-                 }
-            }
+        mesh.position.set(x, 0, z);
+
+        // Rotation
+        if (u.state === 'move' && u.path.length) {
+            const next = u.path[0];
+            const targetAngle = Math.atan2(next.y - u.y, next.x - u.x); // grid y is 3d z
+            // In 3D: atan2(deltaZ, deltaX) gives angle from X axis.
+            // Our 3D setup: X is right, Z is down.
+            // Grid Y maps to 3D Z.
+            // So atan2(dy, dx) is correct for rotation around Y axis, but we might need offset.
+            mesh.rotation.y = -targetAngle; // Invert for 3D coordinate system match?
+        } else if (u.attackAngle) {
+            mesh.rotation.y = -u.attackAngle;
         }
-        
-        // Simple bobbing for air
+
+        // Hover for air
         if (u.type === 'air') {
-            mesh.position.y += Math.sin(Date.now() * 0.005) * 0.2;
+            mesh.position.y = 4 + (u.hoverOffset||0) * 2;
+        } else {
+            mesh.position.y = 0;
+        }
+
+        // Recoil effect (scale or slide back)
+        if (u.recoil > 0) {
+            // Simple visual shake
+             mesh.position.x += (Math.random()-0.5)*0.2;
+             mesh.position.z += (Math.random()-0.5)*0.2;
         }
     });
 
-    // 2. Sync Projectiles
-    // Ideally we track them, but projectiles array changes rapidly. Recreating simple meshes is "okay" but better to pool.
-    // For MVP 3D, let's just clear and redraw projectiles every frame in 3D? No, that's slow.
-    // Let's use a simple pool or just create/destroy since count is low.
+    // Manage Projectiles
+    // Simple approach: Clear all projectile meshes and recreate (inefficient but safe for now)
+    // Or just map them. Since projectiles are transient objects in array, mapping is hard unless we add ID.
+    // Let's just use a pool or clear/redraw. Projectile count is low.
+    // Better: Maintain a group of projectiles.
+    if (!window.projectileGroup) {
+        window.projectileGroup = new THREE.Group();
+        scene.add(window.projectileGroup);
+    }
 
-    // Clear old projectile meshes
-    for (const [p, mesh] of projectileMeshes) {
-        if (!projectiles.includes(p)) {
-            scene.remove(mesh);
-            projectileMeshes.delete(p);
-        }
+    // Clear old
+    while(window.projectileGroup.children.length > 0){
+        window.projectileGroup.remove(window.projectileGroup.children[0]);
     }
 
     projectiles.forEach(p => {
-        let mesh = projectileMeshes.get(p);
-        if (!mesh) {
-            if (p.t === 'nuke') {
-                 const geo = new THREE.SphereGeometry(1, 16, 16);
-                 const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-                 mesh = new THREE.Mesh(geo, mat);
-            } else if (p.t === 'missile') {
-                 const geo = new THREE.ConeGeometry(0.2, 0.8, 8);
-                 const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-                 mesh = new THREE.Mesh(geo, mat);
-                 mesh.rotation.x = Math.PI/2;
-            } else {
-                 const geo = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-                 const mat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-                 mesh = new THREE.Mesh(geo, mat);
-            }
-            scene.add(mesh);
-            projectileMeshes.set(p, mesh);
+        let mesh;
+        if (p.t === 'missile') {
+            const geo = new THREE.BoxGeometry(0.5, 0.5, 2);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+            mesh = new THREE.Mesh(geo, mat);
+        } else if (p.t === 'bullet') {
+            const geo = new THREE.BoxGeometry(0.3, 0.3, 1);
+            const mat = new THREE.MeshBasicMaterial({ color: p.c });
+            mesh = new THREE.Mesh(geo, mat);
+        } else if (p.t === 'nuke') {
+            const geo = new THREE.SphereGeometry(1, 8, 8);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            mesh = new THREE.Mesh(geo, mat);
         }
-        mesh.position.set(p.x * TILE_SIZE_3D, 2, p.y * TILE_SIZE_3D); // Elevation
-        // Nuke drop
-        if (p.t === 'nuke') {
-            const d = Math.hypot(p.tx-p.x, p.ty-p.y);
-            // const totalDist = 14;
-            const dist = Math.hypot(p.tx - p.x, p.ty - p.y);
-            mesh.position.y = 2 + dist * 2;
+
+        if(mesh) {
+            const x = p.x * TILE_SIZE_3D + TILE_SIZE_3D/2;
+            const z = p.y * TILE_SIZE_3D + TILE_SIZE_3D/2;
+            mesh.position.set(x, 2, z); // Projectiles fly at height 2
+            mesh.rotation.y = -p.angle;
+            window.projectileGroup.add(mesh);
         }
     });
-}
 
-function render3D() {
-    renderer.render(scene, camera);
-}
+    // Debris
+    if (!window.debrisGroup) {
+        window.debrisGroup = new THREE.Group();
+        scene.add(window.debrisGroup);
+    }
+    while(window.debrisGroup.children.length > 0){
+        window.debrisGroup.remove(window.debrisGroup.children[0]);
+    }
+    debris.forEach(d => {
+        const geo = new THREE.BoxGeometry(2, 1, 2);
+        const mat = new THREE.MeshLambertMaterial({ color: 0x333333 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(d.x * TILE_SIZE_3D + TILE_SIZE_3D/2, 0.5, d.y * TILE_SIZE_3D + TILE_SIZE_3D/2);
+        mesh.rotation.y = d.rot;
+        window.debrisGroup.add(mesh);
+    });
 
-function toScreenPosition(obj, camera) {
-    const vector = new THREE.Vector3();
-    const widthHalf = 0.5 * window.innerWidth;
-    const heightHalf = 0.5 * window.innerHeight;
-
-    obj.updateMatrixWorld();
-    vector.setFromMatrixPosition(obj.matrixWorld);
-    vector.project(camera);
-
-    vector.x = (vector.x * widthHalf) + widthHalf;
-    vector.y = -(vector.y * heightHalf) + heightHalf;
-
-    return { x: vector.x, y: vector.y };
-}
-
-function drawHUD() {
-    if (!hudCtx) return;
-    hudCtx.clearRect(0, 0, hudCanvas.width, hudCanvas.height);
-
-    // Draw Particles (Projected)
+    // Particles/Explosions
+    if (!window.particleGroup) {
+        window.particleGroup = new THREE.Group();
+        scene.add(window.particleGroup);
+    }
+     while(window.particleGroup.children.length > 0){
+        window.particleGroup.remove(window.particleGroup.children[0]);
+    }
     particles.forEach(p => {
-        const x = p.x * TILE_SIZE_3D;
-        const z = p.y * TILE_SIZE_3D;
-        const pos = toScreenPosition({ matrixWorld: new THREE.Matrix4().makeTranslation(x, 1, z), updateMatrixWorld:()=>{} }, camera);
-
-        hudCtx.fillStyle = p.c || 'orange';
-        const s = (p.size ? p.size : 0.2) * 40; // Scale factor
-        hudCtx.globalAlpha = p.life / 20;
-        hudCtx.beginPath(); hudCtx.arc(pos.x, pos.y, s * (p.life/10), 0, Math.PI*2); hudCtx.fill();
-        hudCtx.globalAlpha = 1;
-    });
-
-    // Draw Unit Info
-    units.forEach(u => {
-        const mesh = unitMeshes.get(u);
-        if (!mesh) return;
-        const pos = toScreenPosition(mesh, camera);
-
-        // Selection Ring
-        if (selectedUnit === u) {
-            hudCtx.strokeStyle = '#fff'; hudCtx.lineWidth = 2;
-            hudCtx.beginPath(); hudCtx.arc(pos.x, pos.y, 20, 0, Math.PI*2); hudCtx.stroke();
-
-            // Draw Path
-            if (u.path.length > 0) {
-                hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
-                hudCtx.lineWidth = 2;
-                hudCtx.beginPath();
-                hudCtx.moveTo(pos.x, pos.y);
-                u.path.forEach(node => {
-                    const worldPos = new THREE.Vector3(node.x * TILE_SIZE_3D, 0.5, node.y * TILE_SIZE_3D);
-                    worldPos.project(camera);
-                    const sx = (worldPos.x * window.innerWidth/2) + window.innerWidth/2;
-                    const sy = -(worldPos.y * window.innerHeight/2) + window.innerHeight/2;
-                    hudCtx.lineTo(sx, sy);
-                });
-                hudCtx.stroke();
-            }
-        }
-
-        // Icon
-        // const scale = 1;
-        hudCtx.fillStyle = '#fff';
-        hudCtx.font = '20px Arial';
-        hudCtx.textAlign = 'center';
-        hudCtx.textBaseline = 'middle';
-        hudCtx.fillText(DB[u.key].icon, pos.x, pos.y);
-
-        // HP Bar
-        const barW = 30;
-        const barH = 4;
-        hudCtx.fillStyle = 'red'; hudCtx.fillRect(pos.x - barW/2, pos.y - 20, barW, barH);
-        hudCtx.fillStyle = '#0f0'; hudCtx.fillRect(pos.x - barW/2, pos.y - 20, barW * (u.hp/u.maxHp), barH);
+        const size = p.type==='explode' ? (15-p.l)*0.2 : 0.5;
+        const geo = new THREE.BoxGeometry(size, size, size);
+        const mat = new THREE.MeshBasicMaterial({ color: p.type==='smoke'?0x555555:(p.type==='explode'?0xffaa00:0xffffff), transparent:true, opacity: p.l/15 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(p.x * TILE_SIZE_3D + TILE_SIZE_3D/2, 2, p.y * TILE_SIZE_3D + TILE_SIZE_3D/2);
+        window.particleGroup.add(mesh);
     });
 
     // Mushroom Cloud
     if (mushroomCloud) {
-        // Project center
-        const x = mushroomCloud.x * TILE_SIZE_3D;
-        const z = mushroomCloud.y * TILE_SIZE_3D;
-        // Mock object for projection
-        const dummy = { matrixWorld: new THREE.Matrix4().makeTranslation(x, 0, z), updateMatrixWorld:()=>{} };
-        const pos = toScreenPosition(dummy, camera);
-
-        const scale = 50; // Arbitrary 2D scale factor
-        mushroomCloud.draw(hudCtx, pos.x, pos.y, scale);
+        if (!window.nukeMesh) {
+            window.nukeMesh = new THREE.Group();
+            const stem = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 10, 8), new THREE.MeshBasicMaterial({color: 0xffff00, transparent:true, opacity:0.8}));
+            stem.position.y = 5;
+            const cap = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 16), new THREE.MeshBasicMaterial({color: 0xff4400, transparent:true, opacity:0.8}));
+            cap.position.y = 10;
+            window.nukeMesh.add(stem, cap);
+            scene.add(window.nukeMesh);
+        }
+        window.nukeMesh.position.set(mushroomCloud.x * TILE_SIZE_3D + TILE_SIZE_3D/2, 0, mushroomCloud.y * TILE_SIZE_3D + TILE_SIZE_3D/2);
+        const scale = 1 - (mushroomCloud.life / mushroomCloud.maxLife);
+        window.nukeMesh.scale.set(scale, scale, scale);
+        window.nukeMesh.children.forEach(m => m.material.opacity = mushroomCloud.life / 60);
+    } else if (window.nukeMesh) {
+        scene.remove(window.nukeMesh);
+        window.nukeMesh = null;
     }
 }
 
-function draw() {
-    if (!renderer) init3D();
-    update3D();
-    render3D();
-    drawHUD();
+function createUnitMesh(key, color) {
+    const group = new THREE.Group();
+    const matBody = new THREE.MeshLambertMaterial({ color: color });
+    const matGrey = new THREE.MeshLambertMaterial({ color: 0x555555 });
+    const matDark = new THREE.MeshLambertMaterial({ color: 0x222222 });
+
+    if (key === 'rifle') {
+        const body = new THREE.Mesh(new THREE.BoxGeometry(1.5, 3, 1.5), matBody);
+        body.position.y = 1.5;
+        const head = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), matGrey);
+        head.position.y = 3.5;
+        group.add(body, head);
+    } else if (key === 'tank') {
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(4, 2, 6), matBody);
+        chassis.position.y = 1;
+        const turret = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 4), matGrey);
+        turret.position.y = 2.5;
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4), matDark);
+        barrel.rotation.x = Math.PI/2;
+        barrel.position.set(0, 2.5, 3);
+        group.add(chassis, turret, barrel);
+    } else if (key === 'buggy') {
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(3, 1.5, 5), matBody);
+        chassis.position.y = 1.5;
+        const wheels = [];
+        for(let i=0; i<4; i++) {
+            const w = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.5), matDark);
+            w.rotation.z = Math.PI/2;
+            w.position.set(i%2===0?1.8:-1.8, 0.8, i<2?1.5:-1.5);
+            group.add(w);
+        }
+        group.add(chassis);
+    } else if (key === 'missile') {
+         const chassis = new THREE.Mesh(new THREE.BoxGeometry(3.5, 2, 5.5), matBody);
+         chassis.position.y = 1;
+         const rack = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 3), matGrey);
+         rack.position.set(0, 3, -1);
+         group.add(chassis, rack);
+    } else if (key === 'orca') {
+         const body = new THREE.Mesh(new THREE.BoxGeometry(2, 2, 6), matBody);
+         body.position.y = 0;
+         const wing = new THREE.Mesh(new THREE.BoxGeometry(6, 0.5, 2), matGrey);
+         group.add(body, wing);
+    } else if (key === 'harv') {
+         const body = new THREE.Mesh(new THREE.BoxGeometry(4, 2.5, 6), matBody);
+         body.position.y = 1.25;
+         const scoop = new THREE.Mesh(new THREE.BoxGeometry(3, 1, 1), matGrey);
+         scoop.position.set(0, 0.5, 3.5);
+         group.add(body, scoop);
+    }
+
+    // Shadow
+    // Handled by renderer shadow map, but we can add a simple blob shadow plane if needed.
+    // Shadows are enabled in renderer.
+
+    return group;
 }
 
-// --- INPUT OVERRIDE ---
+function drawUnitShape(key, col, ts, unit) {
+    const s = ts * 0.4;
+    let angle = 0;
+    if (unit.state === 'move' && unit.path.length) {
+        const next = unit.path[0];
+        angle = Math.atan2(next.y - unit.y, next.x - unit.x);
+    } else if (unit.attackAngle) {
+        angle = unit.attackAngle;
+    }
+
+    ctx.rotate(angle);
+
+    // Flip sprite if facing left to keep text/emoji upright
+    if (Math.abs(angle) > Math.PI / 2) {
+        ctx.scale(1, -1);
+    }
+
+    // Team indicator
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // Draw Icon with transparency
+    ctx.font = `${ts*0.6}px Segoe UI Emoji, Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText(DB[key].icon, 0, 0);
+    ctx.globalAlpha = 1.0;
+}
+
+function drawUnitPath(u, ts) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(u.vx*ts+ts/2, u.vy*ts+ts/2);
+    u.path.forEach(p => ctx.lineTo(p.x*ts+ts/2, p.y*ts+ts/2));
+    ctx.stroke(); ctx.setLineDash([]);
+}
+
+function addParticles(x, y, count, type) { for(let i=0; i<count; i++) { particles.push({ x:x+(Math.random()-0.5)*0.5, y:y+(Math.random()-0.5)*0.5, vx:(Math.random()-0.5)*0.05, vy:(Math.random()-0.5)*0.05, l:15, type:type }); } }
+function initSinglePlayer() { const rads=document.getElementsByName('playerSide'); for(let r of rads) if(r.checked) myPlayerId=parseInt(r.value); aiPlayerId=-myPlayerId; isMultiplayer=false; isHost=true; generateMap(); startGame(); }
+function initHostGame() { const rads=document.getElementsByName('playerSide'); for(let r of rads) if(r.checked) myPlayerId=parseInt(r.value); document.getElementById('main-menu-panel').classList.add('hidden'); document.getElementById('lobby-ui').classList.remove('hidden'); document.getElementById('lobby-status').innerHTML="Creating Room..."; peer=new Peer(); peer.on('open', id => document.getElementById('lobby-status').innerHTML = `ID: <strong style="color:#fff; user-select:text">${id}</strong>`); peer.on('connection', c => { conn=c; setupNet(); document.getElementById('lobby-status').innerHTML="Starting..."; setTimeout(() => startMP(true), 1000); }); }
+function initJoinGame() { const id=document.getElementById('join-id-input').value; if(!id) return; document.getElementById('main-menu-panel').classList.add('hidden'); document.getElementById('lobby-ui').classList.remove('hidden'); peer=new Peer(); peer.on('open', () => { conn=peer.connect(id); setupNet(); }); }
+function cancelLobby() { if(peer) peer.destroy(); document.getElementById('lobby-ui').classList.add('hidden'); document.getElementById('main-menu-panel').classList.remove('hidden'); }
+function setupNet() { conn.on('data', d => { if(isHost && d.t==='in') handleInput(null, null, d.x, d.y, -myPlayerId); if(isHost && d.t==='buy') buyUnit(d.k, -myPlayerId); if(!isHost) { if(d.t==='init') { GRID=d.g; myPlayerId=-d.h; startGameClient(); } if(d.type==='state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; n.hoverOffset=x.ho; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
+function startMP(host) { isMultiplayer=true; isHost=host; if(host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
+function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; createTerrain(); }
+function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive=true; setupUIForSide(); SFX.init(); createTerrain(); }
+function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], funds=p===1?money:enemyMoney; if(funds >= d.cost) { const rStart=p===1?CONFIG.gridRows-1:0; let placed=false; for(let r of [rStart, p===1?CONFIG.gridRows-2:1]) { for(let c=0; c<CONFIG.gridCols; c++) { if(!units.some(u=>Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u=new Unit(k, p, c, r); units.push(u); if(p===myPlayerId) { selectedUnit=u; spawnFlash=10; } placed=true; break; } } if(placed) break; } if(!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'explode'); } }
+
 function handleInput(e, _, nx, ny, netPlayer) {
     if (e) {
-        e.preventDefault();
+        e.preventDefault(); // Prevent text selection/scroll
 
-        // RAYCASTING
+        // 3D Raycasting
         const rect = renderer.domElement.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
 
-        mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+        mouse.x = ((cx - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((cy - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
 
-        if (planeGeometry) {
-            const intersects = raycaster.intersectObject(planeGeometry);
-            if (intersects.length > 0) {
-                const p = intersects[0].point;
-                // Convert to Grid Coords
-                nx = Math.round(p.x / TILE_SIZE_3D);
-                ny = Math.round(p.z / TILE_SIZE_3D);
-            }
+        // Intersect with ground plane
+        // We need to make sure groundPlane is added to a list or just use it directly
+        const intersects = raycaster.intersectObject(groundPlane);
+
+        if (intersects.length > 0) {
+            const point = intersects[0].point;
+            // Map 3D point to Grid
+            // Ground is at (x, 0, z)
+            // Grid 0,0 is at 3D 0,0 (actually offset by half tile)
+            // Our mesh positioning: x = c * TS + TS/2.
+            // So c = (x - TS/2) / TS?
+            // Actually simpler: c = floor(x / TS).
+            // Check bounds just in case.
+
+            nx = Math.floor(point.x / TILE_SIZE_3D);
+            ny = Math.floor(point.z / TILE_SIZE_3D);
+        } else {
+            return; // Clicked outside ground
         }
     }
 
-    if (isMultiplayer && !isHost && !netPlayer) { conn.send({t:'in', x:nx, y:ny}); return; }
+    if(isMultiplayer && !isHost && !netPlayer) { conn.send({t:'in', x:nx, y:ny}); return; }
     const p = netPlayer || myPlayerId;
 
-    // Bounds Check
     if (nx >= 0 && nx < CONFIG.gridCols && ny >= 0 && ny < CONFIG.gridRows) {
         const clicked = units.find(u => Math.hypot(u.x-nx, u.y-ny) < 0.8);
-        if (clicked && clicked.owner === p) {
-            selectedUnit = clicked; return;
-        }
-        if (selectedUnit && selectedUnit.owner === p) {
+        if(clicked && clicked.owner === p) { selectedUnit = clicked; return; }
+        if(selectedUnit && selectedUnit.owner === p) {
             if (clicked && clicked.owner !== p) selectedUnit.setPath(nx, ny);
             else if ((GRID[ny][nx] !== 1 || selectedUnit.type === 'air')) selectedUnit.setPath(nx, ny);
         }
     }
 }
 
-function setupUIForSide() {
-    const playerIsGreen = myPlayerId === 1;
-    document.getElementById('right-hp-label').textContent = playerIsGreen ? "ALLIED" : "BROTHERS";
-    document.getElementById('right-hp-label').style.color = playerIsGreen ? CONFIG.colors.p : CONFIG.colors.e;
-    document.getElementById('left-hp-label').textContent = playerIsGreen ? "BROTHERS" : "ALLIED";
-    document.getElementById('left-hp-label').style.color = playerIsGreen ? CONFIG.colors.e : CONFIG.colors.p;
-}
-function updateHP() {
-    const MAX_HP = 2000;
-    const playerIsGreen = myPlayerId === 1;
+function setupUIForSide() { const g=myPlayerId===1; document.getElementById('right-hp-label').innerText = g ? "ALLIED" : "BROTHERS"; document.getElementById('right-hp-label').style.color = g ? CONFIG.colors.p : CONFIG.colors.e; document.getElementById('left-hp-label').innerText = g ? "BROTHERS" : "ALLIED"; document.getElementById('left-hp-label').style.color = g ? CONFIG.colors.e : CONFIG.colors.p; }
+function updateHP() { const max=2000, g=myPlayerId===1, php=g?bases.p:bases.e, ehp=g?bases.e:bases.p; const rb=document.getElementById('right-hp').querySelector('.hp-bar-fill'); rb.style.width=`${(php/max)*100}%`; rb.style.backgroundColor=g?CONFIG.colors.p:CONFIG.colors.e; document.getElementById('right-hp').querySelector('.hp-bar-text').innerText=`${Math.round(php)}/${max}`; const lb=document.getElementById('left-hp').querySelector('.hp-bar-fill'); lb.style.width=`${(ehp/max)*100}%`; lb.style.backgroundColor=g?CONFIG.colors.e:CONFIG.colors.p; document.getElementById('left-hp').querySelector('.hp-bar-text').innerText=`${Math.round(ehp)}/${max}`; }
+function togglePause() { isPaused=!isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
+function endGame(o) { if(!gameActive) return; gameActive=false; document.getElementById('end-title').innerText = o; document.getElementById('modal-end').classList.remove('hidden'); }
 
-    const playerHP = playerIsGreen ? bases.p : bases.e;
-    const enemyHP = playerIsGreen ? bases.e : bases.p;
+// 3D Initialization
+function init3D() {
+    canvas = document.getElementById('gameCanvas');
+    hudCanvas = document.getElementById('hudCanvas');
+    hudCtx = hudCanvas.getContext('2d');
 
-    const rightHpContainer = document.getElementById('right-hp');
-    const leftHpContainer = document.getElementById('left-hp');
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050505);
+    scene.fog = new THREE.Fog(0x050505, 50, 150);
 
-    const rightBarFill = rightHpContainer.querySelector('.hp-bar-fill');
-    const rightBarText = rightHpContainer.querySelector('.hp-bar-text');
-    rightBarFill.style.width = `${(playerHP / MAX_HP) * 100}%`;
-    rightBarFill.style.backgroundColor = playerIsGreen ? CONFIG.colors.p : CONFIG.colors.e;
-    rightBarText.textContent = `${Math.round(playerHP)} / ${MAX_HP}`;
+    // Camera: Top-down perspective
+    camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
+    // Adjusted camera for 3D view
+    camera.position.set(0, 80, 50);
+    camera.lookAt(0, 0, 0);
 
-    const leftBarFill = leftHpContainer.querySelector('.hp-bar-fill');
-    const leftBarText = leftHpContainer.querySelector('.hp-bar-text');
-    leftBarFill.style.width = `${(enemyHP / MAX_HP) * 100}%`;
-    leftBarFill.style.backgroundColor = playerIsGreen ? CONFIG.colors.e : CONFIG.colors.p;
-    leftBarText.textContent = `${Math.round(enemyHP)} / ${MAX_HP}`;
-}
-function togglePause() { isPaused = !isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
-function addParticles(x, y, count, color) { for(let i=0; i<count; i++) { particles.push({ x:x+(Math.random()-0.5), y:y+(Math.random()-0.5), life:15, c:color }); } }
-function endGame(outcome) {
-    if (!gameActive) return;
-    gameActive = false;
-    document.getElementById('end-title').innerText = outcome;
-    document.getElementById('modal-end').classList.remove('hidden');
-}
+    renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.setSize(window.innerWidth, window.innerHeight);
 
-// UI Functions
-function initSinglePlayer() {
-    const rads = document.getElementsByName('playerSide');
-    for(let r of rads) if(r.checked) myPlayerId = parseInt(r.value);
-    aiPlayerId = -myPlayerId;
-    isMultiplayer = false; isHost = true;
-    try { document.getElementById('modal-start').classList.add('hidden'); } catch(e) {}
-    generateMap(); startGame();
-}
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x404040, 0.6); // Soft white light
+    scene.add(ambientLight);
 
-function initHostGame() {
-    const rads = document.getElementsByName('playerSide');
-    for(let r of rads) if(r.checked) myPlayerId = parseInt(r.value);
-    document.getElementById('main-menu-panel').classList.add('hidden');
-    document.getElementById('lobby-ui').classList.remove('hidden');
-    document.getElementById('lobby-status').innerHTML = "Creating Room...";
-    peer = new Peer();
-    peer.on('open', id => document.getElementById('lobby-status').innerHTML = `ID: <strong style="color:#fff; user-select:text">${id}</strong>`);
-    peer.on('connection', c => { conn=c; setupNet(); document.getElementById('lobby-status').innerHTML="Starting..."; setTimeout(() => startMP(true), 1000); });
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(-20, 50, -20);
+    dirLight.castShadow = true;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
+    dirLight.shadow.camera.near = 0.5;
+    dirLight.shadow.camera.far = 200;
+    dirLight.shadow.camera.left = -100;
+    dirLight.shadow.camera.right = 100;
+    dirLight.shadow.camera.top = 100;
+    dirLight.shadow.camera.bottom = -100;
+    scene.add(dirLight);
+
+    const hemiLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.3);
+    scene.add(hemiLight);
+
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+
+    // Input
+    window.addEventListener('resize', onWindowResize, false);
+    document.addEventListener('mousedown', handleInput);
+    document.addEventListener('touchstart', handleInput, {passive: false});
+
+    onWindowResize();
 }
 
-function initJoinGame() {
-    const id = document.getElementById('join-id-input').value; if(!id) return;
-    document.getElementById('main-menu-panel').classList.add('hidden');
-    document.getElementById('lobby-ui').classList.remove('hidden');
-    peer = new Peer(); peer.on('open', () => { conn = peer.connect(id); setupNet(); });
-}
+function onWindowResize() {
+    if(!camera || !renderer) return;
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    hudCanvas.width = window.innerWidth;
+    hudCanvas.height = window.innerHeight;
 
-function cancelLobby() {
-    if (peer) peer.destroy();
-    document.getElementById('lobby-ui').classList.add('hidden');
-    document.getElementById('main-menu-panel').classList.remove('hidden');
-}
-
-function setupNet() { conn.on('data', d => { if (isHost && d.t === 'in') handleInput(null, null, d.x, d.y, -myPlayerId); if (isHost && d.t === 'buy') buyUnit(d.k, -myPlayerId); if (!isHost) { if (d.t === 'init') { GRID=d.g; myPlayerId = -d.h; startGameClient(); } if (d.type === 'state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
-function startMP(host) { isMultiplayer = true; isHost = host; if (host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() {
-    document.getElementById('modal-start').classList.add('hidden');
-    document.getElementById('lobby-ui').classList.add('hidden');
-    money = CONFIG.startMoney;
-    enemyMoney = CONFIG.startMoney;
-    units=[]; projectiles=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null;
-    // Clear 3D Meshes
-    unitMeshes.forEach(m => scene.remove(m)); unitMeshes.clear();
-    projectileMeshes.forEach(m => scene.remove(m)); projectileMeshes.clear();
-
-    setupUIForSide(); updateHP(); SFX.init(); gameActive = true;
-}
-function startGameClient() {
-    document.getElementById('modal-start').classList.add('hidden');
-    gameActive = true;
-    setupUIForSide(); SFX.init();
-    if (scene) generateTerrain3D();
-}
-function buyUnit(k, p) {
-    if (!gameActive || isPaused) return;
-    const d = DB[k], funds = p===1?money:enemyMoney;
-    if (funds >= d.cost) {
-        const rStart = p===1 ? CONFIG.gridRows-1 : 0, rEnd = p===1 ? CONFIG.gridRows-2 : 1;
-        let placed = false;
-        for (let r of [rStart, rEnd]) {
-            for (let c=0; c<CONFIG.gridCols; c++) {
-                if (!units.some(u => Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) {
-                    if(p===1) money-=d.cost; else enemyMoney-=d.cost;
-                    const u = new Unit(k, p, c, r);
-                    units.push(u);
-                    if (p === myPlayerId) { selectedUnit = u; spawnFlash=10; }
-                    placed = true;
-                    break;
-                }
-            }
-            if (placed) break;
-        }
-        if (!placed && p===myPlayerId) {
-            addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'red');
-        }
-    }
-}
-
-function updateCameraPosition() {
-    if (!camera) return;
-    const aspect = window.innerWidth / window.innerHeight;
+    // Fit camera to grid
     const gridW = CONFIG.gridCols * TILE_SIZE_3D;
     const gridH = CONFIG.gridRows * TILE_SIZE_3D;
 
-    // Calculate distance to fit both width and height
-    // vFOV = 60 degrees. tan(30) = 0.57735
-    const tanFOV = Math.tan(Math.PI / 6);
-    const distH = gridH / 2 / tanFOV;
-    const distW = gridW / 2 / tanFOV / aspect;
+    // Simple fit logic: Place camera high enough to see everything
+    // FOV 45. dist = size / 2 / tan(fov/2).
+    // We want to fit gridH vertically.
+    const fovRad = camera.fov * Math.PI / 180;
+    let dist = (Math.max(gridW, gridH) * 0.7) / Math.tan(fovRad / 2);
 
-    const dist = Math.max(distH, distW) * 1.1; // 1.1x padding
+    // Center camera on grid
+    const cx = (CONFIG.gridCols * TILE_SIZE_3D) / 2;
+    const cz = (CONFIG.gridRows * TILE_SIZE_3D) / 2;
 
-    camera.position.set(gridW / 2, dist, gridH / 2);
-    camera.lookAt(gridW / 2, 0, gridH / 2);
+    // Set position. Top down with slight angle?
+    // User asked for "still be top down". Strictly top down means looking down Y.
+    // "Realistic models" look better with slight perspective.
+    // Let's do steep angle (e.g. 70 deg) or straight down.
+    // Straight down is clearer for gameplay.
+    // Let's do straight down (top down).
+    camera.position.set(cx, dist, cz + 1); // +1 z to align up vector? No, defaults are fine.
+    camera.lookAt(cx, 0, cz);
+
+    // Wait, if looking straight down (0, -1, 0), we need to ensure up vector is Z-negative or something to match 2D orientation.
+    // In 2D: X right, Y down.
+    // In 3D: X right, Z down (usually). Y up.
+    // So if I look from (cx, dist, cz) to (cx, 0, cz), with Up=(0,0,-1) -> X right, Z down (screen Y).
+    camera.up.set(0, 0, -1); // Make Z negative correspond to Screen Y positive (down).
+    camera.lookAt(cx, 0, cz);
 }
 
-window.addEventListener('resize', () => {
-    if (camera) {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        updateCameraPosition();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        hudCanvas.width = window.innerWidth;
-        hudCanvas.height = window.innerHeight;
-    }
-});
+// Call init
+init3D();
 
-// Initialization
-window.onload = () => {
-    init3D(); // Initialize Three.js immediately
-    // Add event listeners
-    // We attach to gameCanvas (renderer.domElement).
-    renderer.domElement.addEventListener('mousedown', e => handleInput(e));
-    renderer.domElement.addEventListener('touchstart', e => handleInput(e));
-
-    // Resize initial
-    window.dispatchEvent(new Event('resize'));
-
-    const menu = document.getElementById('build-menu');
-    Object.keys(DB).forEach(k => {
-        const b = document.createElement('div'); b.className='card'; b.dataset.cost=DB[k].cost;
-        b.innerHTML = `<span class="card-cost">${DB[k].cost}</span><div class="card-icon">${DB[k].icon}</div><div class="card-name">${DB[k].n}</div>`;
-        b.onclick = (e) => { e.stopPropagation(); if(isMultiplayer && !isHost) conn.send({t:'buy', k:k}); else buyUnit(k, myPlayerId); };
-        menu.appendChild(b);
-    });
-
-    generateMap();
-    requestAnimationFrame(loop);
-};
+const menu = document.getElementById('build-menu'); Object.keys(DB).forEach(k => { const b = document.createElement('div'); b.className='card'; b.dataset.cost=DB[k].cost; b.innerHTML = `<span class="card-cost">${DB[k].cost}</span><div class="card-icon">${DB[k].icon}</div><div class="card-name">${DB[k].n}</div>`; b.onclick = (e) => { e.stopPropagation(); if(isMultiplayer && !isHost) conn.send({t:'buy', k:k}); else buyUnit(k, myPlayerId); }; menu.appendChild(b); });
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
