@@ -388,14 +388,12 @@ class Unit {
         
         if (attacker && units.includes(attacker)) {
             const dist = Math.hypot(this.x - attacker.x, this.y - attacker.y);
-            let myMod = (this.mods[attacker.key] !== undefined) ? this.mods[attacker.key] : (this.mods[attacker.type] || 0);
-            if ((myMod * this.dmg) > 1 && dist <= this.rng) { this.path = []; this.state = 'idle'; }
-            else {
-                const angle = Math.atan2(this.y - attacker.y, this.x - attacker.x);
-                let rx = Math.max(0, Math.min(CONFIG.gridCols-1, this.x + Math.cos(angle) * 4));
-                let ry = Math.max(0, Math.min(CONFIG.gridRows-1, this.y + Math.sin(angle) * 4));
-                // FIX: Round retreat coordinates
-                this.setPath(Math.round(rx), Math.round(ry));
+            if (dist <= this.rng) {
+                this.path = [];
+                this.state = 'idle';
+            } else {
+                // Move towards attacker instead of fleeing
+                this.setPath(Math.round(attacker.x), Math.round(attacker.y));
             }
         } else if (this.state === 'move') { this.path = []; this.state = 'idle'; }
 
