@@ -794,13 +794,13 @@ function update3D() {
             mesh = new THREE.Group();
 
             // Body
-            const bodyGeo = new THREE.CylinderGeometry(0.3, 0.3, 2, 8);
+            const bodyGeo = new THREE.CylinderGeometry(0.3, 0.3, 2, 32);
             bodyGeo.rotateX(Math.PI / 2);
             const bodyMat = new THREE.MeshLambertMaterial({ color: 0xeeeeee }); // White body
             const body = new THREE.Mesh(bodyGeo, bodyMat);
 
             // Nose
-            const noseGeo = new THREE.ConeGeometry(0.3, 0.8, 8);
+            const noseGeo = new THREE.ConeGeometry(0.3, 0.8, 32);
             noseGeo.rotateX(Math.PI / 2);
             noseGeo.translate(0, 0, 1.4);
             const noseMat = new THREE.MeshLambertMaterial({ color: 0xff0000 }); // Red tip
@@ -816,7 +816,7 @@ function update3D() {
             fins2.rotation.z = Math.PI / 2;
 
             // Exhaust
-            const fireGeo = new THREE.ConeGeometry(0.2, 0.8, 8);
+            const fireGeo = new THREE.ConeGeometry(0.2, 0.8, 32);
             fireGeo.rotateX(-Math.PI / 2);
             fireGeo.translate(0, 0, -1.2);
             const fireMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
@@ -826,17 +826,17 @@ function update3D() {
 
         } else if (p.t === 'bullet') {
             // Glowing streak
-            const geo = new THREE.CapsuleGeometry(0.15, 1, 4, 8);
+            const geo = new THREE.CapsuleGeometry(0.15, 1, 4, 16);
             geo.rotateX(Math.PI / 2);
             const mat = new THREE.MeshBasicMaterial({ color: p.c });
             mesh = new THREE.Mesh(geo, mat);
         } else if (p.t === 'nuke') {
             mesh = new THREE.Group();
-            const geo = new THREE.SphereGeometry(1, 8, 8);
+            const geo = new THREE.SphereGeometry(1, 32, 32);
             const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
             mesh.add(new THREE.Mesh(geo, mat));
             // Add a little falling trail
-            const trailGeo = new THREE.ConeGeometry(0.5, 3, 8);
+            const trailGeo = new THREE.ConeGeometry(0.5, 3, 32);
             trailGeo.rotateX(Math.PI/2);
             trailGeo.translate(0, 0, -2);
             mesh.add(new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({color: 0x888888})));
@@ -918,14 +918,14 @@ function createUnitMesh(key, color) {
 
     if (key === 'rifle') {
         // Humanoid
-        const legGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.5);
+        const legGeo = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 16);
         const lLeg = new THREE.Mesh(legGeo, matGrey); lLeg.position.set(-0.4, 0.75, 0);
         const rLeg = new THREE.Mesh(legGeo, matGrey); rLeg.position.set(0.4, 0.75, 0);
 
         const torso = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.5, 0.8), matBody);
         torso.position.y = 2.25;
 
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.5), matGrey); // Helmet
+        const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 32, 32), matGrey); // Helmet
         head.position.y = 3.2;
 
         const gun = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.5), matBlack);
@@ -940,7 +940,7 @@ function createUnitMesh(key, color) {
 
         // 6 Wheels
         for(let i=0; i<3; i++) {
-            const w = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.5, 8), matBlack);
+            const w = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.8, 0.5, 32), matBlack);
             w.rotation.z = Math.PI/2;
             const z = -2 + i*2;
             w.position.set(2, 0.8, z);
@@ -962,7 +962,7 @@ function createUnitMesh(key, color) {
         rackGroup.add(rackBox);
 
         // Tubes
-        const tubeGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.2);
+        const tubeGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 32);
         const tubeMat = new THREE.MeshBasicMaterial({color:0x000000});
         [[0.6, 0.3], [-0.6, 0.3], [0.6, -0.3], [-0.6, -0.3]].forEach(pos => {
             const t = new THREE.Mesh(tubeGeo, tubeMat);
@@ -979,14 +979,14 @@ function createUnitMesh(key, color) {
         chassis.position.y = 1;
 
         // Roll cage
-        const cageGeo = new THREE.TorusGeometry(1.5, 0.1, 4, 6, Math.PI); // Half arch
+        const cageGeo = new THREE.TorusGeometry(1.5, 0.1, 16, 32, Math.PI); // Half arch
         const cage = new THREE.Mesh(cageGeo, matGrey);
         cage.position.set(0, 1, 0);
         cage.rotation.y = Math.PI/2;
         cage.scale.set(1, 1, 0.8);
 
         // Wheels (Big offroad)
-        const wGeo = new THREE.CylinderGeometry(1, 1, 0.8, 8);
+        const wGeo = new THREE.CylinderGeometry(1, 1, 0.8, 32);
         wGeo.rotateZ(Math.PI/2);
         const w1 = new THREE.Mesh(wGeo, matBlack); w1.position.set(1.8, 1, 1.5);
         const w2 = w1.clone(); w2.position.set(-1.8, 1, 1.5);
@@ -994,7 +994,7 @@ function createUnitMesh(key, color) {
         const w4 = w1.clone(); w4.position.set(-1.8, 1, -1.5);
 
         // Gun
-        const gunMount = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.5), matGrey);
+        const gunMount = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.5, 32), matGrey);
         gunMount.position.set(0, 1.5, 0);
         const gunBarrel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 1.5), matBlack);
         gunBarrel.position.set(0, 1.8, 0.5);
@@ -1013,15 +1013,15 @@ function createUnitMesh(key, color) {
         hull.position.y = 1.1;
 
         // Turret
-        const turret = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.8, 1, 8), matBody);
+        const turret = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.8, 1, 32), matBody);
         turret.position.y = 2.2;
 
         // Barrel
-        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4), matSilver);
+        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4, 32), matSilver);
         barrel.rotation.x = Math.PI/2;
         barrel.position.set(0, 2.2, 2.5);
 
-        const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.5), matBlack);
+        const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.5, 32), matBlack);
         muzzle.rotation.x = Math.PI/2;
         muzzle.position.set(0, 2.2, 4.5);
 
@@ -1047,7 +1047,7 @@ function createUnitMesh(key, color) {
         const rPod = new THREE.Mesh(podGeo, matGrey); rPod.position.set(1.5, 2, 0);
 
         // Rotors (static but visible)
-        const rotorGeo = new THREE.CylinderGeometry(2.5, 2.5, 0.1, 4);
+        const rotorGeo = new THREE.CylinderGeometry(2.5, 2.5, 0.1, 32);
         // Add texture or bars? Just a cross shape
         const bladeGeo = new THREE.BoxGeometry(5, 0.1, 0.5);
         const lRotor = new THREE.Mesh(bladeGeo, matBlack); lRotor.position.set(-1.5, 2.6, 0);
