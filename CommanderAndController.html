@@ -671,18 +671,20 @@ function drawHUD() {
     const ts = TILE_SIZE_3D;
 
     // Base HP bars (Static locations)
-    [0, CONFIG.gridRows-1].forEach(r => {
-        const c = Math.floor(CONFIG.gridCols/2);
-        const o = r < 2 ? -1 : 1;
-        if(GRID[r][c] === 4) {
-             const bx = c*ts + ts/2, by = r*ts + ts/2;
-             const p = project(bx, 10, by); // HP bar floating above
-             const hp = o===1 ? bases.p : bases.e;
-             const width = 60;
-             hudCtx.fillStyle = '#000'; hudCtx.fillRect(p.x - width/2, p.y, width, 6);
-             hudCtx.fillStyle = o===1?'#0f0':'#f00'; hudCtx.fillRect(p.x - width/2, p.y, width * (hp/2000), 6);
-        }
-    });
+    if (GRID && GRID.length > 0) {
+        [0, CONFIG.gridRows-1].forEach(r => {
+            const c = Math.floor(CONFIG.gridCols/2);
+            const o = r < 2 ? -1 : 1;
+            if(GRID[r] && GRID[r][c] === 4) {
+                const bx = c*ts + ts/2, by = r*ts + ts/2;
+                const p = project(bx, 10, by); // HP bar floating above
+                const hp = o===1 ? bases.p : bases.e;
+                const width = 60;
+                hudCtx.fillStyle = '#000'; hudCtx.fillRect(p.x - width/2, p.y, width, 6);
+                hudCtx.fillStyle = o===1?'#0f0':'#f00'; hudCtx.fillRect(p.x - width/2, p.y, width * (hp/2000), 6);
+            }
+        });
+    }
 
     units.forEach(u => {
         const x = u.vx*ts + ts/2, z = u.vy*ts + ts/2;
