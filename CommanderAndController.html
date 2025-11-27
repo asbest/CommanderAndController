@@ -975,12 +975,16 @@ function initJoinGame() { const id=document.getElementById('join-id-input').valu
 function cancelLobby() { if(peer) peer.destroy(); document.getElementById('lobby-ui').classList.add('hidden'); document.getElementById('main-menu-panel').classList.remove('hidden'); }
 function setupNet() { conn.on('data', d => { if(isHost && d.t==='in') handleInput(null, null, d.x, d.y, -myPlayerId); if(isHost && d.t==='buy') buyUnit(d.k, -myPlayerId); if(!isHost) { if(d.t==='init') { GRID=d.g; myPlayerId=-d.h; startGameClient(); } if(d.type==='state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; n.hoverOffset=x.ho; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
 function startMP(host) { isMultiplayer=true; isHost=host; if(host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; createTerrain(); }
+function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; }
 function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive=true; setupUIForSide(); SFX.init(); createTerrain(); }
 function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], funds=p===1?money:enemyMoney; if(funds >= d.cost) { const rStart=p===1?CONFIG.gridRows-1:0; let placed=false; for(let r of [rStart, p===1?CONFIG.gridRows-2:1]) { for(let c=0; c<CONFIG.gridCols; c++) { if(!units.some(u=>Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u=new Unit(k, p, c, r); units.push(u); if(p===myPlayerId) { selectedUnit=u; spawnFlash=10; } placed=true; break; } } if(placed) break; } if(!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'explode'); } }
 
 function handleInput(e, _, nx, ny, netPlayer) {
     if (e) {
+        // Only handle input on the canvas
+        if (e.target !== renderer.domElement) return;
+        if (!groundPlane) return;
+
         e.preventDefault(); // Prevent text selection/scroll
 
         // 3D Raycasting
@@ -994,19 +998,11 @@ function handleInput(e, _, nx, ny, netPlayer) {
         raycaster.setFromCamera(mouse, camera);
 
         // Intersect with ground plane
-        // We need to make sure groundPlane is added to a list or just use it directly
         const intersects = raycaster.intersectObject(groundPlane);
 
         if (intersects.length > 0) {
             const point = intersects[0].point;
             // Map 3D point to Grid
-            // Ground is at (x, 0, z)
-            // Grid 0,0 is at 3D 0,0 (actually offset by half tile)
-            // Our mesh positioning: x = c * TS + TS/2.
-            // So c = (x - TS/2) / TS?
-            // Actually simpler: c = floor(x / TS).
-            // Check bounds just in case.
-
             nx = Math.floor(point.x / TILE_SIZE_3D);
             ny = Math.floor(point.z / TILE_SIZE_3D);
         } else {
