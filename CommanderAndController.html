@@ -15,103 +15,111 @@
         
         /* --- CANVAS & LAYOUT --- */
         #game-container { position: relative; width: 100vw; height: 100vh; background: #000; display: flex; justify-content: center; align-items: center; }
-        canvas { background: #111; box-shadow: 0 0 50px rgba(0, 255, 0, 0.05); max-width: 100%; max-height: 100%; }
+        canvas { background: #080808; box-shadow: 0 0 50px rgba(0, 255, 0, 0.05); max-width: 100%; max-height: 100%; z-index: 1; }
+        
         #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; z-index: 10; }
         .pointer-enabled { pointer-events: auto; }
 
         /* --- HUD --- */
         .top-bar { 
-            background: rgba(0, 10, 0, 0.85); padding: 12px 20px; 
+            background: rgba(0, 20, 0, 0.7); padding: 12px 20px; 
             display: flex; justify-content: space-between; align-items: center; 
-            border-bottom: 1px solid #333; backdrop-filter: blur(5px); 
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2); backdrop-filter: blur(8px); 
+            box-shadow: 0 5px 20px rgba(0,0,0,0.5);
         }
         .hp-box { display: flex; flex-direction: column; align-items: center; min-width: 70px; }
-        .hp-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; }
-        .hp-pips { display: flex; gap: 4px; }
-        .pip { width: 18px; height: 6px; background: #222; border-radius: 1px; }
-        .pip.active-allied { background: #00ff00; box-shadow: 0 0 8px #00ff00; }
-        .pip.active-brothers { background: #ff4444; box-shadow: 0 0 8px #ff4444; }
-
-        .hp-bar-container { width: 120px; height: 12px; background-color: #222; border: 1px solid #444; border-radius: 3px; position: relative; overflow: hidden; }
+        .hp-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; margin-bottom: 4px; text-transform: uppercase; }
+        
+        .hp-bar-container { width: 120px; height: 8px; background-color: #111; border: 1px solid #444; border-radius: 2px; position: relative; overflow: hidden; }
         .hp-bar-fill { height: 100%; transition: width 0.2s ease-out; }
         .hp-bar-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 8px; font-weight: bold; color: #fff; text-shadow: 1px 1px 0 #000; }
         
-        .missile-timer { width: 160px; height: 6px; background: #111; border: 1px solid #444; border-radius: 3px; overflow: hidden; position: relative; }
-        #missile-fill { height: 100%; width: 0%; transition: width 0.1s linear; background: #fff; }
+        .missile-timer { width: 160px; height: 4px; background: #111; border: 1px solid #444; border-radius: 2px; overflow: hidden; position: relative; }
+        #missile-fill { height: 100%; width: 0%; transition: width 0.1s linear; background: #fff; box-shadow: 0 0 10px #fff; }
 
         #pause-btn { 
-            background: transparent; color: #00ff00; border: 1px solid #00ff00; 
+            background: rgba(0, 255, 0, 0.1); color: #00ff00; border: 1px solid #00ff00; 
             padding: 6px 14px; font-size: 12px; font-weight: 700; letter-spacing: 1px;
             cursor: pointer; border-radius: 4px; transition: all 0.2s; 
+            text-shadow: 0 0 5px rgba(0,255,0,0.5);
         }
-        #pause-btn:hover { background: rgba(0, 255, 0, 0.15); }
+        #pause-btn:hover { background: rgba(0, 255, 0, 0.3); box-shadow: 0 0 10px rgba(0,255,0,0.4); }
 
         .resource-display { 
-            position: absolute; bottom: 120px; left: 20px; font-size: 32px; 
+            position: absolute; bottom: 130px; left: 20px; font-size: 32px; 
             color: #00ff00; font-weight: 700; letter-spacing: -1px;
-            text-shadow: 0 2px 10px rgba(0,0,0,0.8); pointer-events: none; z-index: 20; font-family: monospace; 
+            text-shadow: 0 0 10px rgba(0,255,0,0.6); pointer-events: none; z-index: 20; font-family: monospace; 
         }
 
         /* --- BUILD MENU --- */
         .build-menu { 
-            background: rgba(5, 10, 5, 0.9); padding: 15px; display: flex; gap: 12px; 
-            overflow-x: auto; justify-content: center; border-top: 1px solid #333; 
+            background: rgba(5, 10, 5, 0.85); padding: 15px; display: flex; gap: 12px; 
+            overflow-x: auto; justify-content: center; border-top: 1px solid rgba(0,255,0,0.2); 
             padding-bottom: 25px; backdrop-filter: blur(10px); 
         }
         .card { 
-            width: 64px; height: 90px; background: linear-gradient(to bottom, #1a2a1a, #050505); 
+            width: 64px; height: 90px; background: linear-gradient(to bottom, #111, #050505); 
             border: 1px solid #333; border-radius: 6px; display: flex; flex-direction: column; 
             align-items: center; justify-content: center; cursor: pointer; position: relative; 
             transition: transform 0.1s, border-color 0.2s; 
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
         }
         .card:active { transform: scale(0.96); }
-        .card.disabled { opacity: 0.3; filter: grayscale(1); cursor: default; }
-        .card:not(.disabled):hover { border-color: #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.15); }
-        .card-icon { font-size: 26px; margin-bottom: 6px; }
-        .card-cost { color: #ffff00; font-weight: 700; font-size: 11px; position: absolute; top: 4px; right: 5px; font-family: monospace;}
+        .card.disabled { opacity: 0.4; filter: grayscale(1) brightness(0.5); cursor: default; border-color: #222; }
+        .card:not(.disabled):hover { border-color: #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.2), inset 0 0 10px rgba(0,255,0,0.1); }
+        .card-icon { font-size: 26px; margin-bottom: 6px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
+        .card-cost { color: #ffff00; font-weight: 700; font-size: 11px; position: absolute; top: 4px; right: 5px; font-family: monospace; text-shadow: 0 0 2px #000;}
         .card-name { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
 
         /* --- MODALS & MENUS --- */
         .modal-overlay { 
             position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(8px);
+            background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(5px);
             display: flex; flex-direction: column; justify-content: center; align-items: center; 
             z-index: 100; pointer-events: auto; 
         }
         .modal-overlay.hidden { display: none !important; }
         
         .glass-panel {
-            background: rgba(20, 25, 20, 0.7);
-            border: 1px solid rgba(0, 255, 0, 0.2);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.05) inset;
+            background: rgba(20, 30, 20, 0.85);
+            border: 1px solid rgba(0, 255, 0, 0.3);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.05) inset, 0 0 30px rgba(0,255,0,0.1);
             padding: 40px;
-            border-radius: 16px;
+            border-radius: 4px;
             width: 340px;
             display: flex;
             flex-direction: column;
             gap: 25px;
             text-align: center;
+            position: relative;
+        }
+        .glass-panel::before {
+            content: ''; position: absolute; top: 2px; left: 2px; right: 2px; bottom: 2px;
+            border: 1px solid rgba(0,255,0,0.1); pointer-events: none;
         }
 
         h1 { 
-            color: #fff; font-size: 28px; text-transform: uppercase; letter-spacing: 4px; 
-            margin: 0; font-weight: 300; text-shadow: 0 0 20px rgba(0,255,0,0.4);
+            color: #fff; font-size: 28px; text-transform: uppercase; letter-spacing: 6px; 
+            margin: 0; font-weight: 300; text-shadow: 0 0 20px rgba(0,255,0,0.6);
             line-height: 1.2;
         }
-        h1 span { color: #00ff00; font-weight: 700; }
+        h1 span { color: #00ff00; font-weight: 800; }
 
         .menu-group { display: flex; flex-direction: column; gap: 12px; }
         .group-label { color: #666; font-size: 10px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700; text-align: left; margin-bottom: 5px; }
 
         .btn-large { 
-            background: #00ff00; color: #000; border: none; padding: 14px; 
-            font-size: 13px; font-weight: 800; cursor: pointer; border-radius: 6px; 
+            background: linear-gradient(135deg, #00cc00, #008800); 
+            color: #000; border: none; padding: 14px; 
+            font-size: 13px; font-weight: 800; cursor: pointer; border-radius: 2px; 
             text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; width: 100%;
+            box-shadow: 0 4px 10px rgba(0,255,0,0.2);
         }
-        .btn-large:hover { background: #66ff66; transform: translateY(-1px); box-shadow: 0 5px 15px rgba(0,255,0,0.3); }
+        .btn-large:hover { transform: translateY(-1px); box-shadow: 0 6px 15px rgba(0,255,0,0.4); filter: brightness(1.2); }
         
         .btn-large.secondary { 
             background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #ccc; 
+            box-shadow: none;
         }
         .btn-large.secondary:hover { 
             border-color: #00ff00; color: #fff; background: rgba(0,255,0,0.1); 
@@ -121,39 +129,29 @@
         .input-box { 
             flex: 1; padding: 12px; font-size: 14px; text-align: center; 
             background: rgba(0,0,0,0.5); border: 1px solid #333; color: #fff; 
-            border-radius: 6px; font-family: monospace; outline: none; transition: border-color 0.2s;
+            border-radius: 2px; font-family: monospace; outline: none; transition: border-color 0.2s;
         }
         .input-box:focus { border-color: #00ff00; }
 
         .side-switch { 
-            display: flex; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 4px; border: 1px solid #333;
+            display: flex; background: rgba(0,0,0,0.3); border-radius: 2px; padding: 4px; border: 1px solid #333;
         }
         .side-option { 
             flex: 1; padding: 8px; cursor: pointer; font-size: 11px; font-weight: 600; 
-            text-transform: uppercase; color: #666; border-radius: 4px; transition: all 0.2s;
+            text-transform: uppercase; color: #666; border-radius: 2px; transition: all 0.2s;
         }
         .side-option:hover { color: #999; }
         .side-option input { display: none; }
-        .side-option:has(input:checked) { background: #222; color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.5); }
+        .side-option:has(input:checked) { background: #222; color: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.5); border: 1px solid #444; }
 
         #lobby-status { font-family: monospace; color: #aaa; font-size: 12px; margin-top: 10px; }
-
-        .click-feedback {
-            position: absolute; width: 30px; height: 30px;
-            border: 2px solid rgba(255,255,255,0.9); border-radius: 50%;
-            transform: translate(-50%, -50%); pointer-events: none;
-            animation: ripple 0.4s ease-out forwards; z-index: 90;
-        }
-        @keyframes ripple {
-            0% { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
-            100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
-        }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <canvas id="gameCanvas"></canvas>
+    <!-- CRT Effect Removed -->
     
     <div id="ui-layer">
         <div class="top-bar pointer-enabled">
@@ -204,11 +202,7 @@
 
             <div class="menu-group">
                 <div class="group-label">Multiplayer Network</div>
-                
-                <!-- Host Controls -->
                 <button class="btn-large secondary" onclick="initHostGame()">Host Match</button>
-
-                <!-- Join Controls -->
                 <div class="input-row" style="margin-top: 5px;">
                     <input type="text" id="join-id-input" class="input-box" placeholder="Lobby ID">
                     <button class="btn-large secondary" style="width: auto; padding: 0 20px;" onclick="initJoinGame()">Join</button>
@@ -216,7 +210,6 @@
             </div>
         </div>
 
-        <!-- Lobby Status Sub-Screen -->
         <div id="lobby-ui" class="glass-panel hidden">
             <h2>Connection</h2>
             <p id="lobby-status">Initializing...</p>
@@ -246,108 +239,58 @@
 <script>
 const CONFIG = { gridCols: 11, gridRows: 15, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 500, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
 
-// Updated Balance:
-// Missile vs Air: 4.0x damage (Instant kill on Orca)
-// Orca vs Missile: 0.1x damage (Very weak against its counter)
-// Orca vs Vehicle: 2.5x damage (Strong vs Tank)
+// Updated Balance with Graphics Keys
 const DB = {
     rifle: { n:'Rifle', cost:50, hp:60, dmg:10, spd:0.0075, rng:1.5, cd:40, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.1, air: 0.1, building: 0.5 } },
-    missile: { n:'Launcher', cost:150, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.5, vehicle: 2.0, air: 4.0, building: 2.0 } },
+    missile: { n:'Launcher', cost:150, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'🚀', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.5, vehicle: 2.0, air: 4.0, building: 2.0 } },
     buggy: { n:'Buggy', cost:200, hp:120, dmg:12, spd:0.0125, rng:2.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.0, vehicle: 0.3, air: 3.5, building: 0.5 } },
     tank: { n:'Tank', cost:300, hp:350, dmg:60, spd:0.005, rng:2.0, cd:100, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.5, air: 0.0, building: 1.5 } },
     orca: { n:'Orca', cost:400, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 2.5, missile: 0.1, air: 1.0, building: 2.0 } },
     harv: { n:'Harvester', cost:250, hp:350, dmg:0, spd:0.0035, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
 };
 
-const baseCoordinates = {
-    '1': {x: Math.floor(CONFIG.gridCols/2), y: CONFIG.gridRows - 1},
-    '-1': {x: Math.floor(CONFIG.gridCols/2), y: 0}
-};
+const baseCoordinates = { '1': {x: Math.floor(CONFIG.gridCols/2), y: CONFIG.gridRows - 1}, '-1': {x: Math.floor(CONFIG.gridCols/2), y: 0} };
 
-let canvas, ctx;
+let canvas, ctx, bgCanvas;
 let gameActive = false, isPaused = false, isMultiplayer = false, isHost = false, myPlayerId = 1, aiPlayerId = -1;
-let money = 0, enemyMoney = 0, units = [], particles = [], projectiles = [], GRID = [];
+let money = 0, enemyMoney = 0, units = [], particles = [], debris = [], projectiles = [], GRID = [];
 let selectedUnit = null, missileVal = 0, bases = { p: 2000, e: 2000 }, lastFrameTime = 0, spawnFlash = 0, mushroomCloud = null, aiTick = 0;
 let peer = null, conn = null;
 
-const aiState = {
-    strategy: 'hold', 
-    buildTarget: null,
-};
+const aiState = { strategy: 'hold', buildTarget: null };
 
 // --- AUDIO ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx, audioEnabled = false;
 const SFX = {
-    init: () => {
-        try {
-            if (!AudioContext) return;
-            if (!audioCtx) audioCtx = new AudioContext();
-            if (audioCtx.state === 'suspended') audioCtx.resume().then(() => audioEnabled = true); else audioEnabled = true;
-        } catch (e) { audioEnabled = false; }
-    },
-    tone: (t, f1, f2, d, v1, v2) => {
-        if (!audioEnabled || isPaused || !audioCtx) return;
-        try {
-            const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-            o.connect(g); g.connect(audioCtx.destination); o.type = t;
-            o.frequency.setValueAtTime(f1, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(f2, audioCtx.currentTime+d);
-            g.gain.setValueAtTime(v1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(v2, audioCtx.currentTime+d);
-            o.start(); o.stop(audioCtx.currentTime+d);
-        } catch(e){}
-    },
+    init: () => { try { if (!AudioContext) return; if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume().then(() => audioEnabled = true); else audioEnabled = true; } catch (e) { audioEnabled = false; } },
+    tone: (t, f1, f2, d, v1, v2) => { if (!audioEnabled || isPaused || !audioCtx) return; try { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = t; o.frequency.setValueAtTime(f1, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(f2, audioCtx.currentTime+d); g.gain.setValueAtTime(v1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(v2, audioCtx.currentTime+d); o.start(); o.stop(audioCtx.currentTime+d); } catch(e){} },
     shoot: () => SFX.tone('square', 400, 100, 0.1, 0.05, 0.001),
     tank: () => SFX.tone('sawtooth', 100, 20, 0.2, 0.1, 0.001),
     launch: () => SFX.tone('triangle', 200, 600, 0.3, 0.05, 0),
-    explode: () => {
-        if (!audioEnabled || isPaused || !audioCtx) return;
-        try {
-            const b = audioCtx.createBuffer(1, audioCtx.sampleRate*0.3, audioCtx.sampleRate), d = b.getChannelData(0);
-            for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
-            const n=audioCtx.createBufferSource(), g=audioCtx.createGain();
-            n.buffer=b; n.connect(g); g.connect(audioCtx.destination);
-            g.gain.setValueAtTime(0.1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.3);
-            n.start();
-        } catch(e){}
-    },
-    nuke: () => {
-        if (!audioEnabled || isPaused || !audioCtx) return;
-        try {
-            const b=audioCtx.createBuffer(1, audioCtx.sampleRate*4, audioCtx.sampleRate), d=b.getChannelData(0);
-            for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(audioCtx.sampleRate*0.8));
-            const n=audioCtx.createBufferSource(), g=audioCtx.createGain(); n.buffer=b; n.connect(g); g.connect(audioCtx.destination);
-            g.gain.setValueAtTime(0.5, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+4); n.start();
-        } catch(e){}
-    }
+    explode: () => { if (!audioEnabled || isPaused || !audioCtx) return; try { const b = audioCtx.createBuffer(1, audioCtx.sampleRate*0.3, audioCtx.sampleRate), d = b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; const n=audioCtx.createBufferSource(), g=audioCtx.createGain(); n.buffer=b; n.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+0.3); n.start(); } catch(e){} },
+    nuke: () => { if (!audioEnabled || isPaused || !audioCtx) return; try { const b=audioCtx.createBuffer(1, audioCtx.sampleRate*4, audioCtx.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(audioCtx.sampleRate*0.8)); const n=audioCtx.createBufferSource(), g=audioCtx.createGain(); n.buffer=b; n.connect(g); g.connect(audioCtx.destination); g.gain.setValueAtTime(0.5, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime+4); n.start(); } catch(e){} }
 };
 
-// --- PATHFINDING ---
+// --- LOGIC ---
 class Node { constructor(x, y, p, g, h) { this.x=x; this.y=y; this.p=p; this.g=g; this.h=h; this.f=g+h; } }
 function findPath(unit, tx, ty) {
+    // FIX: Round inputs to avoid infinite loop with float coords
+    tx = Math.round(tx); ty = Math.round(ty);
+    
     if (tx < 0 || tx >= CONFIG.gridCols || ty < 0 || ty >= CONFIG.gridRows) return [];
     if (unit.type === 'air') return [{x: tx, y: ty}];
     if (GRID[ty] && GRID[ty][tx] === 1) return [];
-    
     const startX = Math.round(unit.x), startY = Math.round(unit.y);
     const open = [new Node(startX, startY, null, 0, Math.abs(tx-startX) + Math.abs(ty-startY))];
     const closed = new Set();
     let iters = 0;
-
     while (open.length > 0) {
-        iters++;
-        if (iters > 500) return []; 
-
+        iters++; if (iters > 500) return []; 
         let curr = open[0], idx = 0;
         for (let i=1; i<open.length; i++) if (open[i].f < curr.f) { curr = open[i]; idx = i; }
-        open.splice(idx, 1);
-        closed.add(`${curr.x},${curr.y}`);
-
-        if (curr.x === tx && curr.y === ty) {
-            const path = [];
-            while(curr.p) { path.unshift({x: curr.x, y: curr.y}); curr = curr.p; }
-            return path;
-        }
-
+        open.splice(idx, 1); closed.add(`${curr.x},${curr.y}`);
+        if (curr.x === tx && curr.y === ty) { const path = []; while(curr.p) { path.unshift({x: curr.x, y: curr.y}); curr = curr.p; } return path; }
         const neighbors = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
         for (let n of neighbors) {
             const nx = curr.x + n.x, ny = curr.y + n.y;
@@ -362,61 +305,21 @@ function findPath(unit, tx, ty) {
     return [];
 }
 
-class MushroomCloud {
-    constructor(x, y) { this.x = x; this.y = y; this.life = 300; this.maxLife = 300; }
-    update() { this.life--; }
-    draw(ctx, ts) {
-        const progress = 1 - (this.life / this.maxLife);
-        const stemWidth = Math.max(0, ts * 0.5 * Math.min(progress * 5, 1));
-        const stemHeight = Math.max(0, ts * 3 * Math.min(progress * 2, 1));
-        const capRadius = Math.max(0, ts * 1.5 * Math.min(progress * 3, 1) + (Math.sin(Date.now()/100) * 5));
-        const cx = this.x * ts + ts/2; const cy = this.y * ts + ts/2;
-        let cInner, cOuter;
-        if (progress < 0.2) { cInner = '#fff'; cOuter = '#ff0'; } else if (progress < 0.5) { cInner = '#ff0'; cOuter = '#f00'; } else if (progress < 0.8) { cInner = '#f40'; cOuter = '#333'; } else { cInner = '#333'; cOuter = '#000'; }
-        ctx.globalAlpha = Math.min(this.life / 60, 1);
-        try {
-            const grdStem = ctx.createLinearGradient(cx, cy, cx, cy - stemHeight);
-            grdStem.addColorStop(0, cOuter); grdStem.addColorStop(1, cInner);
-            ctx.fillStyle = grdStem; ctx.beginPath(); ctx.ellipse(cx, cy - stemHeight/2, stemWidth/2, stemHeight/2, 0, 0, Math.PI*2); ctx.fill();
-            const grdCap = ctx.createRadialGradient(cx, cy - stemHeight, 0, cx, cy - stemHeight, capRadius);
-            grdCap.addColorStop(0, cInner); grdCap.addColorStop(0.5, cOuter); grdCap.addColorStop(1, 'rgba(0,0,0,0)');
-            ctx.fillStyle = grdCap; ctx.beginPath(); ctx.arc(cx, cy - stemHeight, capRadius, 0, Math.PI*2); ctx.fill();
-        } catch(e) { ctx.fillStyle='white'; ctx.beginPath(); ctx.arc(cx, cy, ts, 0, Math.PI*2); ctx.fill(); }
-        ctx.globalAlpha = 1;
-    }
-}
-
-// --- LOGIC ---
-function generateMap() {
-    GRID = [];
-    const cols = CONFIG.gridCols, rows = CONFIG.gridRows, cx = Math.floor(cols/2), cy = Math.floor(rows/2);
-    for (let r = 0; r < rows; r++) GRID.push(new Array(cols).fill(0));
-    GRID[0][cx] = 4; // Player -1 (enemy) base
-    GRID[rows-1][cx] = 4; // Player 1 (player) base
-    [{r:4,c:2}, {r:4,c:cols-3}, {r:cy,c:cx}, {r:rows-5,c:2}, {r:rows-5,c:cols-3}].forEach(p => GRID[p.r][p.c] = 3);
-    [{r:1,c:1}, {r:1,c:cols-2}, {r:rows-2,c:1}, {r:rows-2,c:cols-2}, {r:cy,c:1}, {r:cy,c:cols-2}].forEach(p => GRID[p.r][p.c] = 2);
-    for (let r = 2; r < Math.floor(rows/2); r++) {
-        for (let c = 1; c < cols - 1; c++) {
-            if (GRID[r][c] === 0 && (Math.abs(c - cx) > 1 || r >= 4) && Math.random() < 0.2) {
-                GRID[r][c] = 1; GRID[r][cols-1-c] = 1; GRID[rows-1-r][c] = 1; GRID[rows-1-r][cols-1-c] = 1;
-            }
-        }
-    }
-}
-
 class Unit {
     constructor(k, o, x, y) {
         const d = DB[k];
         this.key=k; this.owner=o; this.x=x; this.y=y; this.tx=x; this.ty=y; this.vx=x; this.vy=y;
         this.hp=d.hp; this.maxHp=d.hp; this.dmg=d.dmg; this.spd=d.spd; this.rng=d.rng; this.cd=0; this.cdMax=d.cd;
         this.type=d.type; this.proj=d.proj; this.mods=d.mods; this.harvest=d.harvest;
-        this.state='idle'; this.path=[];
-        this.recoil = 0; this.attackAngle = 0;
+        this.state='idle'; this.path=[]; this.recoil = 0; this.attackAngle = 0; this.hoverOffset = 0;
     }
     update() {
         if (this.cd > 0) this.cd--;
-        this.recoil = Math.max(0, this.recoil - 0.5); 
+        this.recoil = Math.max(0, this.recoil - 0.5);
+        if(this.type === 'air') this.hoverOffset = Math.sin(Date.now() / 300) * 0.1;
+        
         this.vx += (this.x - this.vx)*0.1; this.vy += (this.y - this.vy)*0.1;
+        
         if (this.state === 'move') {
             if (this.path.length > 0) {
                 const n = this.path[0], dx = n.x - this.x, dy = n.y - this.y, dist = Math.sqrt(dx*dx + dy*dy);
@@ -424,20 +327,15 @@ class Unit {
                 else { this.x=n.x; this.y=n.y; this.path.shift(); }
             } else {
                 this.state = 'idle';
-                // Auto Harvest
                 if (this.harvest && GRID[Math.round(this.y)] && GRID[Math.round(this.y)][Math.round(this.x)] === 2) this.state='harvest';
             }
         } else if (this.state === 'idle') {
             const t = this.findTarget();
             if (t && Math.hypot(this.x-t.x, this.y-t.y) <= this.rng) this.attack(t);
-            // Auto Harvest Seek
-            if (this.harvest && GRID[Math.round(this.y)] && GRID[Math.round(this.y)][Math.round(this.x)] === 2) this.state='harvest';
-            else if (this.harvest && !this.path.length) {
+            if (this.harvest && !this.path.length) {
                 const nearestTib = findNearestTile(this.x, this.y, 2);
                 if (nearestTib) this.setPath(nearestTib.x, nearestTib.y);
             }
-        } else if (this.state === 'harvest') {
-            // Harvesting logic handled in global loop income
         }
     }
     setPath(tx, ty) { this.path = findPath(this, tx, ty); if (this.path.length > 0) this.state='move'; }
@@ -446,16 +344,13 @@ class Unit {
         units.forEach(u => {
             if (u.owner !== this.owner && Math.hypot(this.x - u.x, this.y - u.y) <= this.rng) {
                 let m = (this.mods[u.key] !== undefined) ? this.mods[u.key] : (this.mods[u.type] || 1);
-                // m=0 check ensures tank doesn't target air
                 if (m > 0 && this.dmg * m > 1 && this.dmg * m > max) { max = this.dmg * m; t = u; }
             }
         });
-
         if (!t) {
-            const enemyBase = baseCoordinates[this.owner * -1];
-            if (Math.hypot(this.x - enemyBase.x, this.y - enemyBase.y) <= this.rng && (this.mods.building || 0) > 0) {
-                t = { isBase: true, x: enemyBase.x, y: enemyBase.y, owner: this.owner * -1, type: 'building', vx: enemyBase.x, vy: enemyBase.y };
-            }
+            const eb = baseCoordinates[this.owner * -1];
+            if (Math.hypot(this.x - eb.x, this.y - eb.y) <= this.rng && (this.mods.building || 0) > 0)
+                t = { isBase: true, x: eb.x, y: eb.y, owner: this.owner * -1, type: 'building', vx: eb.x, vy: eb.y };
         }
         return t;
     }
@@ -465,57 +360,112 @@ class Unit {
         this.recoil = 5;
         this.attackAngle = Math.atan2(t.y - this.y, t.x - this.x);
         let m = (this.mods[t.key] !== undefined) ? this.mods[t.key] : (this.mods[t.type] || 1);
-
-        const projSpeed = 0.08;
-
         if (this.proj === 'missile') {
             SFX.launch();
-            addParticles(this.vx, this.vy, 3, '#fff');
-            // Added attacker reference for retreat logic
-            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this });
+            addParticles(this.vx, this.vy, 5, 'flash');
+            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this, trailTimer: 0 });
         } else {
             if (this.key === 'tank') SFX.tank(); else SFX.shoot();
-            // Added attacker reference for retreat logic
-            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: projSpeed, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
+            addParticles(this.vx + Math.cos(this.attackAngle)*0.4, this.vy + Math.sin(this.attackAngle)*0.4, 3, 'flash');
+            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: 0.15, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
         }
     }
     takeDamage(a, attacker) { 
-        this.hp -= a; 
+        this.hp -= a;
+        addParticles(this.vx, this.vy, 2, 'spark');
+        if (this.hp < this.maxHp * 0.5 && Math.random() < 0.1) addParticles(this.vx, this.vy, 1, 'smoke');
         
-        // REACTION LOGIC: Stop to fight, or retreat if impossible
         if (attacker && units.includes(attacker)) {
             const dist = Math.hypot(this.x - attacker.x, this.y - attacker.y);
-            // Check if I can hurt them
             let myMod = (this.mods[attacker.key] !== undefined) ? this.mods[attacker.key] : (this.mods[attacker.type] || 0);
-            const canHit = (myMod * this.dmg) > 1;
-            const inRange = dist <= this.rng;
-
-            if (canHit && inRange) {
-                // STOP AND FIGHT
-                this.path = [];
-                this.state = 'idle';
-            } else {
-                // IMPOSSIBLE TO FIGHT: RETREAT
-                // Calculate retreat vector (away from attacker)
-                const retreatDist = 4;
+            if ((myMod * this.dmg) > 1 && dist <= this.rng) { this.path = []; this.state = 'idle'; }
+            else {
                 const angle = Math.atan2(this.y - attacker.y, this.x - attacker.x);
-                let rx = this.x + Math.cos(angle) * retreatDist;
-                let ry = this.y + Math.sin(angle) * retreatDist;
-                // Clamp to grid
-                rx = Math.max(0, Math.min(CONFIG.gridCols - 1, rx));
-                ry = Math.max(0, Math.min(CONFIG.gridRows - 1, ry));
-                this.setPath(rx, ry);
+                let rx = Math.max(0, Math.min(CONFIG.gridCols-1, this.x + Math.cos(angle) * 4));
+                let ry = Math.max(0, Math.min(CONFIG.gridRows-1, this.y + Math.sin(angle) * 4));
+                // FIX: Round retreat coordinates
+                this.setPath(Math.round(rx), Math.round(ry));
             }
-        } else {
-            // Unknown attacker or already dead, just stop moving if taking damage
-            if (this.state === 'move') {
-                this.path = [];
-                this.state = 'idle';
+        } else if (this.state === 'move') { this.path = []; this.state = 'idle'; }
+
+        if (this.hp <= 0) {
+            units = units.filter(u => u !== this); if (selectedUnit===this) selectedUnit=null;
+            addParticles(this.vx, this.vy, 10, 'explode');
+            debris.push({x:this.vx, y:this.vy, type: this.key, rot: Math.random()*6});
+            if(debris.length > 20) debris.shift();
+        }
+    }
+}
+
+class MushroomCloud {
+    constructor(x, y) { this.x = x; this.y = y; this.life = 300; this.maxLife = 300; }
+    update() { this.life--; }
+    draw(ctx, ts) {
+        const progress = 1 - (this.life / this.maxLife);
+        const stemWidth = Math.max(0, ts * 0.5 * Math.min(progress * 5, 1));
+        const stemHeight = Math.max(0, ts * 3 * Math.min(progress * 2, 1));
+        const capRadius = Math.max(0, ts * 1.5 * Math.min(progress * 3, 1) + (Math.sin(Date.now()/100) * 5));
+        const cx = this.x * ts + ts/2, cy = this.y * ts + ts/2;
+        let cInner = progress < 0.2 ? '#fff' : (progress < 0.5 ? '#ff0' : '#f40');
+        let cOuter = progress < 0.2 ? '#ff0' : (progress < 0.5 ? '#f00' : '#333');
+        ctx.globalAlpha = Math.min(this.life / 60, 1);
+        const grdStem = ctx.createLinearGradient(cx, cy, cx, cy - stemHeight);
+        grdStem.addColorStop(0, cOuter); grdStem.addColorStop(1, cInner);
+        ctx.fillStyle = grdStem; ctx.beginPath(); ctx.ellipse(cx, cy - stemHeight/2, stemWidth/2, stemHeight/2, 0, 0, Math.PI*2); ctx.fill();
+        const grdCap = ctx.createRadialGradient(cx, cy - stemHeight, 0, cx, cy - stemHeight, capRadius);
+        grdCap.addColorStop(0, cInner); grdCap.addColorStop(0.5, cOuter); grdCap.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grdCap; ctx.beginPath(); ctx.arc(cx, cy - stemHeight, capRadius, 0, Math.PI*2); ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+}
+
+function generateMap() {
+    GRID = [];
+    const cols = CONFIG.gridCols, rows = CONFIG.gridRows, cx = Math.floor(cols/2), cy = Math.floor(rows/2);
+    for (let r = 0; r < rows; r++) GRID.push(new Array(cols).fill(0));
+    GRID[0][cx] = 4; GRID[rows-1][cx] = 4;
+    [{r:4,c:2}, {r:4,c:cols-3}, {r:cy,c:cx}, {r:rows-5,c:2}, {r:rows-5,c:cols-3}].forEach(p => GRID[p.r][p.c] = 3);
+    [{r:1,c:1}, {r:1,c:cols-2}, {r:rows-2,c:1}, {r:rows-2,c:cols-2}, {r:cy,c:1}, {r:cy,c:cols-2}].forEach(p => GRID[p.r][p.c] = 2);
+    for (let r = 2; r < Math.floor(rows/2); r++) {
+        for (let c = 1; c < cols - 1; c++) {
+            if (GRID[r][c] === 0 && (Math.abs(c - cx) > 1 || r >= 4) && Math.random() < 0.2) {
+                GRID[r][c] = 1; GRID[r][cols-1-c] = 1; GRID[rows-1-r][c] = 1; GRID[rows-1-r][cols-1-c] = 1;
             }
         }
+    }
+    renderStaticMap();
+}
 
-        particles.push({x:this.vx, y:this.vy, l:15, c:'#fa0'});
-        if (this.hp <= 0) { units = units.filter(u => u !== this); if (selectedUnit===this) selectedUnit=null; particles.push({x:this.vx, y:this.vy, l:20, c:'#fff'}); }
+function renderStaticMap() {
+    if(!canvas) return;
+    if(!GRID || !GRID.length) return; // Prevent crash on load
+    bgCanvas = document.createElement('canvas');
+    bgCanvas.width = canvas.width; bgCanvas.height = canvas.height;
+    const bctx = bgCanvas.getContext('2d');
+    const ts = CONFIG.tileSize;
+    bctx.translate(CONFIG.gridOffsetX, CONFIG.gridOffsetY);
+    bctx.fillStyle = '#080808'; bctx.fillRect(0,0, CONFIG.gridCols*ts, CONFIG.gridRows*ts);
+    bctx.strokeStyle = 'rgba(0, 255, 0, 0.05)'; bctx.lineWidth = 1;
+    for(let i=0; i<=CONFIG.gridCols; i++) { bctx.beginPath(); bctx.moveTo(i*ts, 0); bctx.lineTo(i*ts, CONFIG.gridRows*ts); bctx.stroke(); }
+    for(let i=0; i<=CONFIG.gridRows; i++) { bctx.beginPath(); bctx.moveTo(0, i*ts); bctx.lineTo(CONFIG.gridCols*ts, i*ts); bctx.stroke(); }
+    for(let r=0; r<CONFIG.gridRows; r++) {
+        for(let c=0; c<CONFIG.gridCols; c++) {
+            const x = c*ts, y = r*ts, t = GRID[r][c];
+            if (t===1) { // Rounded Hill
+                bctx.fillStyle = '#1a1a1a'; 
+                bctx.beginPath();
+                bctx.moveTo(x, y + ts);
+                bctx.quadraticCurveTo(x + ts/2, y - ts*0.2, x + ts, y + ts);
+                bctx.fill();
+                bctx.strokeStyle = '#3a3a3a'; bctx.lineWidth = 2; bctx.stroke();
+                // Contour
+                bctx.beginPath();
+                bctx.moveTo(x + ts*0.2, y + ts);
+                bctx.quadraticCurveTo(x + ts/2, y + ts*0.4, x + ts*0.8, y + ts);
+                bctx.stroke();
+            }
+            if (t===3) { bctx.fillStyle = '#111'; bctx.fillRect(x+2,y+2,ts-4,ts-4); bctx.strokeStyle = '#444'; bctx.strokeRect(x+5,y+5,ts-10,ts-10); bctx.fillStyle = '#222'; bctx.beginPath(); bctx.arc(x+ts/2,y+ts/2,ts/4,0,Math.PI*2); bctx.fill(); }
+        }
     }
 }
 
@@ -533,540 +483,260 @@ function findNearestTile(x, y, typeId) {
 }
 
 function isBaseUnderAttack(playerId) {
-    const DEFENSE_RADIUS = 6;
-    const baseCoord = baseCoordinates[playerId];
-    if (!baseCoord) return false;
-    for (const unit of units) {
-        if (unit.owner !== playerId) {
-            if (Math.hypot(baseCoord.x - unit.x, baseCoord.y - unit.y) <= DEFENSE_RADIUS) return true;
-        }
-    }
-    return false;
+    const coord = baseCoordinates[playerId];
+    return units.some(u => u.owner !== playerId && Math.hypot(coord.x - u.x, coord.y - u.y) <= 6);
 }
 
 function getBestCounter(enemyUnits) {
     if (!enemyUnits || enemyUnits.length === 0) return 'rifle';
-    const counts = {};
-    enemyUnits.forEach(u => counts[u.type] = (counts[u.type] || 0) + 1);
-    const dominant = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
-    if (dominant === 'infantry') return 'buggy';
-    if (dominant === 'air') return 'missile';
-    if (dominant === 'vehicle') return 'orca'; 
+    const counts = {}; enemyUnits.forEach(u => counts[u.type] = (counts[u.type] || 0) + 1);
+    const dom = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    if (dom === 'infantry') return 'buggy';
+    if (dom === 'air') return 'missile';
+    if (dom === 'vehicle') return 'orca'; 
     return 'tank';
 }
 
-// --- MAIN LOOP ---
 function loop(ts) {
     const dt = ts - lastFrameTime; lastFrameTime = ts;
     try {
         if (gameActive && !isPaused) {
             if (isHost) {
-                if (ts % 1000 < 20) { // Income
-                    let i1 = 5, i2 = 5; // Base income
-                    units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=6; else i2+=6; } });
-                    money+=i1; enemyMoney+=i2;
-                }
-                
-                if (!isMultiplayer) { // AI
+                if (ts % 1000 < 20) { let i1=5, i2=5; units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=6; else i2+=6; } }); money+=i1; enemyMoney+=i2; }
+                if (!isMultiplayer) { 
                     aiTick++;
                     if (aiTick % 40 === 0) {
                         const aiFunds = aiPlayerId === 1 ? money : enemyMoney;
-                        const myUnits = units.filter(u => u.owner === aiPlayerId);
-                        const enemyUnits = units.filter(u => u.owner !== aiPlayerId);
-                        const baseCoord = baseCoordinates[aiPlayerId];
-                        const enemyBaseCoord = baseCoordinates[aiPlayerId * -1];
-
-                        // 1. Base Defense (Highest Priority)
+                        const myUnits = units.filter(u => u.owner === aiPlayerId), enemyUnits = units.filter(u => u.owner !== aiPlayerId);
+                        const baseCoord = baseCoordinates[aiPlayerId], enemyBaseCoord = baseCoordinates[aiPlayerId * -1];
                         if (isBaseUnderAttack(aiPlayerId)) {
-                            const attackers = enemyUnits.filter(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8);
-                            const primaryThreat = attackers[0] || {x: baseCoord.x, y: baseCoord.y};
-                            myUnits.forEach(u => {
-                                if (!u.harvest && u.state !== 'move') u.setPath(primaryThreat.x, primaryThreat.y);
-                            });
+                            const threat = enemyUnits.find(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8) || {x:baseCoord.x, y:baseCoord.y};
+                            myUnits.forEach(u => { if (!u.harvest && u.state !== 'move') u.setPath(threat.x, threat.y); });
                         } else {
-                            // 2. Economy
                             const harvesters = myUnits.filter(u => u.harvest);
-                            if (harvesters.length < 1 && aiFunds >= DB.harv.cost) {
-                                if (!aiState.buildTarget || aiState.buildTarget !== 'harv') aiState.buildTarget = 'harv';
-                            }
-                            
-                            // 3. Production Decision (Tactical vs Random Aggression)
+                            if (harvesters.length < 1 && aiFunds >= DB.harv.cost && (!aiState.buildTarget || aiState.buildTarget !== 'harv')) aiState.buildTarget = 'harv';
                             if (!aiState.buildTarget) {
-                                if (harvesters.length >= 1) {
-                                    const roll = Math.random();
-                                    // 40% chance to be smart and counter, 60% chance to be aggressive/random
-                                    if (roll < 0.4 && enemyUnits.length > 0) {
-                                        aiState.buildTarget = getBestCounter(enemyUnits);
-                                    } else {
-                                        const combatUnits = ['rifle', 'missile', 'buggy', 'tank', 'orca'];
-                                        aiState.buildTarget = combatUnits[Math.floor(Math.random() * combatUnits.length)];
-                                    }
-                                }
+                                if (harvesters.length >= 1) aiState.buildTarget = (Math.random()<0.4 && enemyUnits.length>0) ? getBestCounter(enemyUnits) : ['rifle','missile','buggy','tank','orca'][Math.floor(Math.random()*5)];
                             }
-                            
-                            // Execute Build
-                            if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) {
-                                buyUnit(aiState.buildTarget, aiPlayerId);
-                                aiState.buildTarget = null;
-                            }
-
-                            // 4. Unit Command (Split duties: Platforms vs Attack)
+                            if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) { buyUnit(aiState.buildTarget, aiPlayerId); aiState.buildTarget = null; }
                             const fighters = myUnits.filter(u => !u.harvest);
-                            const platforms = [];
-                            for(let r=0; r<CONFIG.gridRows; r++) for(let c=0; c<CONFIG.gridCols; c++) if (GRID[r][c] === 3) platforms.push({x:c, y:r});
-                            const claimedUnits = new Set();
-
-                            // A. Fill Platforms (1 unit per platform)
+                            const platforms = []; for(let r=0; r<CONFIG.gridRows; r++) for(let c=0; c<CONFIG.gridCols; c++) if (GRID[r][c] === 3) platforms.push({x:c, y:r});
+                            const claimed = new Set();
                             platforms.forEach(p => {
-                                let closest = null, minD = Infinity;
-                                fighters.forEach(u => {
-                                    if (!claimedUnits.has(u)) {
-                                        const d = Math.hypot(u.x - p.x, u.y - p.y);
-                                        if (d < minD) { minD = d; closest = u; }
-                                    }
-                                });
-                                if (closest) {
-                                    claimedUnits.add(closest);
-                                    if (minD > 0.5) closest.setPath(p.x, p.y);
-                                }
+                                let closest=null, minD=Infinity;
+                                fighters.forEach(u => { if (!claimed.has(u)) { const d = Math.hypot(u.x - p.x, u.y - p.y); if (d < minD) { minD = d; closest = u; } } });
+                                if (closest) { claimed.add(closest); if (minD > 0.5) closest.setPath(p.x, p.y); }
                             });
-
-                            // B. Attack (Everyone else) - SMART SEARCH AND DESTROY
                             fighters.forEach(u => {
-                                if (!claimedUnits.has(u) && u.state === 'idle') {
-                                    // CRITICAL CHECK: Do not move if currently shooting!
-                                    // u.findTarget returns a valid target object if one is found AND is in range.
-                                    // If we have a target in range, let the unit fight.
-                                    const currentTarget = u.findTarget();
-                                    if (currentTarget) {
-                                        return; // Busy attacking, don't move
-                                    }
-
-                                    // Otherwise, find the NEAREST enemy unit or base
-                                    let nearest = null;
-                                    let minD = Infinity;
-                                    
-                                    // Check all enemy units
-                                    enemyUnits.forEach(e => {
-                                        const d = Math.hypot(u.x - e.x, u.y - e.y);
-                                        if (d < minD) { minD = d; nearest = e; }
-                                    });
-
-                                    // Compare with enemy base
+                                if (!claimed.has(u) && u.state === 'idle') {
+                                    if (u.findTarget()) return;
+                                    let nearest=null, minD=Infinity;
+                                    enemyUnits.forEach(e => { const d = Math.hypot(u.x - e.x, u.y - e.y); if (d < minD) { minD = d; nearest = e; } });
                                     const dBase = Math.hypot(u.x - enemyBaseCoord.x, u.y - enemyBaseCoord.y);
-                                    
-                                    if (dBase < minD || !nearest) {
-                                        // Base is closer or no units found
-                                        u.setPath(enemyBaseCoord.x, enemyBaseCoord.y);
-                                    } else {
-                                        // Enemy unit is closer, hunt it down
-                                        u.setPath(nearest.x, nearest.y);
-                                    }
+                                    u.setPath((dBase < minD || !nearest) ? enemyBaseCoord.x : nearest.x, (dBase < minD || !nearest) ? enemyBaseCoord.y : nearest.y);
                                 }
                             });
                         }
                     }
                 }
-
-                // Missile
                 if (!mushroomCloud && !projectiles.some(p => p.t === 'nuke')) {
-                    let p1=0, p2=0;
-                    for(let r=0; r<CONFIG.gridRows; r++) for(let c=0; c<CONFIG.gridCols; c++) 
-                        if (GRID[r] && GRID[r][c]===3) { const u = units.find(u => Math.round(u.x)===c && Math.round(u.y)===r); if(u){ if(u.owner===1) p1++; if(u.owner===-1) p2++; } }
+                    let p1=0, p2=0; units.forEach(u => { const t = GRID[Math.round(u.y)]?.[Math.round(u.x)]; if (t===3) { if(u.owner===1) p1++; else p2++; } });
                     const bar = document.getElementById('missile-fill');
                     if (p1 > p2) { missileVal += 0.083; bar.style.background = CONFIG.colors.p; }
                     else if (p2 > p1) { missileVal += 0.083; bar.style.background = CONFIG.colors.e; }
                     else bar.style.background = '#555';
-                    
-                    if (missileVal >= 100) {
-                        missileVal = 0;
-                        const w = p1 > p2 ? 1 : -1;
-                        projectiles.push({t:'nuke', x:5.5, y:7.5, tx:5.5, ty:w===1?0:14, s:0.005, o:w});
-                    }
+                    if (missileVal >= 100) { missileVal = 0; const w = p1 > p2 ? 1 : -1; projectiles.push({t:'nuke', x:5.5, y:7.5, tx:5.5, ty:w===1?0:14, s:0.005, o:w}); }
                     bar.style.width = Math.min(missileVal, 100) + '%';
                 }
-
-                // Updates
                 units.forEach(u => u.update());
                 projectiles = projectiles.filter(p => {
                     if (p.t === 'nuke') {
                         const d = Math.hypot(p.tx-p.x, p.ty-p.y);
                         if (d < p.s) { SFX.nuke(); mushroomCloud=new MushroomCloud(p.tx, p.ty); if(p.o===1) bases.e /= 2; else bases.p /= 2; updateHP(); return false; }
-                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s;
-                        if(Math.random()>0.1) particles.push({x:p.x, y:p.y, l:30, c:'#ff0'});
-                        return true;
+                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s; if(Math.random()>0.1) addParticles(p.x, p.y, 1, 'flash'); return true;
                     }
-
                     const targetAlive = p.tar && (p.tar.isBase || units.includes(p.tar));
-
                     if (p.t === 'missile') {
                         if (targetAlive) { p.tx = p.tar.vx; p.ty = p.tar.vy; }
                         const d = Math.hypot(p.tx - p.x, p.ty - p.y);
-                        if (d < p.s) {
-                            if (targetAlive) {
-                                if (p.tar.isBase) {
-                                    const baseKey = p.o === 1 ? 'e' : 'p';
-                                    bases[baseKey] = Math.max(0, bases[baseKey] - p.dmg);
-                                    updateHP();
-                                } else {
-                                    // Pass attacker to takeDamage
-                                    p.tar.takeDamage(p.dmg, p.attacker);
-                                }
-                            }
-                            SFX.explode(); addParticles(p.x, p.y, 6, 'orange');
-                            return false;
-                        }
-                        p.x += (p.tx - p.x) / d * p.s; p.y += (p.ty - p.y) / d * p.s;
-                        p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
-                        if (Math.random() > 0.3) particles.push({ x: p.x, y: p.y, l: 10, c: '#aaa', size: 0.1 });
+                        if (d < p.s) { if (targetAlive) { if (p.tar.isBase) { const k = p.o===1?'e':'p'; bases[k] = Math.max(0, bases[k]-p.dmg); updateHP(); } else p.tar.takeDamage(p.dmg, p.attacker); } SFX.explode(); addParticles(p.x, p.y, 5, 'explode'); return false; }
+                        p.x += (p.tx - p.x) / d * p.s; p.y += (p.ty - p.y) / d * p.s; p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+                        p.trailTimer++; if(p.trailTimer%3===0) addParticles(p.x, p.y, 1, 'smoke');
                         return true;
                     }
-
                     if (p.t === 'bullet') {
                         if (!targetAlive) return false;
-                        const tx = p.tar.vx, ty = p.tar.vy;
-                        const d = Math.hypot(tx - p.x, ty - p.y);
-
-                        if (d < p.s) {
-                            if (p.tar.isBase) {
-                                const baseKey = p.o === 1 ? 'e' : 'p';
-                                bases[baseKey] = Math.max(0, bases[baseKey] - p.dmg);
-                                updateHP();
-                            } else {
-                                // Pass attacker to takeDamage
-                                p.tar.takeDamage(p.dmg, p.attacker);
-                            }
-                            particles.push({ x: p.x, y: p.y, l: 15, c: '#fa0' });
-                            return false;
-                        }
-
-                        p.x += (tx - p.x) / d * p.s;
-                        p.y += (ty - p.y) / d * p.s;
-                        p.angle = Math.atan2(ty - p.y, tx - p.x);
+                        const tx = p.tar.vx, ty = p.tar.vy, d = Math.hypot(tx - p.x, ty - p.y);
+                        if (d < p.s) { if (targetAlive) { if (p.tar.isBase) { const k = p.o===1?'e':'p'; bases[k] = Math.max(0, bases[k]-p.dmg); updateHP(); } else p.tar.takeDamage(p.dmg, p.attacker); } return false; }
+                        p.x += (tx - p.x) / d * p.s; p.y += (ty - p.y) / d * p.s; p.angle = Math.atan2(ty - p.y, tx - p.x);
                         return true;
                     }
-
                     return false;
                 });
-
-                if (isMultiplayer && conn) {
-                    const clientSide = -myPlayerId;
-                    const clientMoney = clientSide === 1 ? money : enemyMoney;
-                    const hostMoney = clientSide === 1 ? enemyMoney : money;
-                    conn.send({ type:'state', u:units.map(u=>({k:u.key, o:u.owner, x:u.x, y:u.y, vx:u.vx, vy:u.vy, h:u.hp, s:u.state, r:u.recoil, aa:u.attackAngle})), p:projectiles, m1:clientMoney, m2:hostMoney, b:bases, v:missileVal, nk:mushroomCloud });
-                }
+                if (isMultiplayer && conn) conn.send({ type:'state', u:units.map(u=>({k:u.key, o:u.owner, x:u.x, y:u.y, vx:u.vx, vy:u.vy, h:u.hp, s:u.state, r:u.recoil, aa:u.attackAngle, ho:u.hoverOffset})), p:projectiles, m1:(myPlayerId===1?money:enemyMoney), m2:(myPlayerId===1?enemyMoney:money), b:bases, v:missileVal, nk:mushroomCloud });
             }
-
-            // Client State Sync (visuals only) is handled in network receive
-            particles = particles.filter(p => { p.l--; return p.l>0; });
-            if (mushroomCloud) {
-                mushroomCloud.update();
-                if (mushroomCloud.life <= 0) mushroomCloud = null;
-            }
-
+            particles = particles.filter(p => { p.l--; p.x+=p.vx; p.y+=p.vy; return p.l>0; });
+            if (mushroomCloud) { mushroomCloud.update(); if (mushroomCloud.life <= 0) mushroomCloud = null; }
             if (gameActive) {
-                const playerBaseHp = myPlayerId === 1 ? bases.p : bases.e;
-                const enemyBaseHp = myPlayerId === 1 ? bases.e : bases.p;
-                if (playerBaseHp <= 0) {
-                    endGame('DEFEAT');
-                } else if (enemyBaseHp <= 0) {
-                    endGame('VICTORY');
-                }
+                const php = myPlayerId===1?bases.p:bases.e, ehp=myPlayerId===1?bases.e:bases.p;
+                if (php <= 0) endGame('DEFEAT'); else if (ehp <= 0) endGame('VICTORY');
             }
-
             if (spawnFlash > 0) spawnFlash--;
-            
             const myFunds = myPlayerId === 1 ? money : enemyMoney;
             document.getElementById('money-display').innerText = Math.floor(myFunds);
-            document.querySelectorAll('.card').forEach(b => {
-                if (myFunds < b.dataset.cost) b.classList.add('disabled'); else b.classList.remove('disabled');
-            });
+            document.querySelectorAll('.card').forEach(b => { if (myFunds < b.dataset.cost) b.classList.add('disabled'); else b.classList.remove('disabled'); });
         }
         draw();
-    } catch(e) { console.log(e); }
+    } catch(e) { console.error(e); }
     requestAnimationFrame(loop);
 }
 
 function draw() {
     if (!canvas) return;
-    ctx.fillStyle = '#111'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.save(); ctx.translate(CONFIG.gridOffsetX, CONFIG.gridOffsetY);
     const ts = CONFIG.tileSize;
-
-    for(let r=0; r<CONFIG.gridRows; r++) {
-        for(let c=0; c<CONFIG.gridCols; c++) {
-            if (!GRID[r]) continue;
-            const t = GRID[r][c]; const x = c*ts, y = r*ts;
-            ctx.strokeStyle = '#222'; ctx.strokeRect(x,y,ts,ts);
-            if (t===1) { ctx.fillStyle='#444'; ctx.beginPath(); ctx.moveTo(x+ts*0.5, y+ts*0.1); ctx.lineTo(x+ts*0.9, y+ts*0.9); ctx.lineTo(x+ts*0.1, y+ts*0.9); ctx.fill(); }
-            if (t===2) { ctx.fillStyle='rgba(0,255,100,0.1)'; ctx.fillRect(x+2,y+2,ts-4,ts-4); ctx.fillStyle='#0f6'; ctx.beginPath(); ctx.arc(x+ts/2, y+ts/2, ts/4, 0, Math.PI*2); ctx.fill(); }
-            if (t===3) {
-                const u = units.find(u => Math.round(u.x)===c && Math.round(u.y)===r);
-                ctx.fillStyle = u ? (u.owner===1?CONFIG.colors.p : CONFIG.colors.e) : '#555';
-                ctx.globalAlpha = 0.3; ctx.fillRect(x+5,y+5,ts-10,ts-10); ctx.globalAlpha = 1;
-                ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 2; ctx.strokeRect(x+10,y+10,ts-20,ts-20);
-            }
-            if (t===4) { // Base
-                const baseOwner = r < 2 ? -1 : 1;
-                const baseHp = baseOwner === 1 ? bases.p : bases.e;
-
-                ctx.font = `${ts*0.8}px Arial`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = baseOwner === 1 ? CONFIG.colors.p : CONFIG.colors.e;
-                ctx.fillText('⌂', x + ts/2, y + ts/2);
-
-                // Base HP bar
-                ctx.fillStyle = '#222';
-                ctx.fillRect(x, y - 10, ts, 5);
-                ctx.fillStyle = baseOwner === 1 ? CONFIG.colors.p : CONFIG.colors.e;
-                ctx.fillRect(x, y - 10, ts * (baseHp / 2000), 5);
-                ctx.strokeStyle = '#555';
-                ctx.strokeRect(x, y - 10, ts, 5);
+    ctx.clearRect(0,0,canvas.width, canvas.height);
+    if(bgCanvas) ctx.drawImage(bgCanvas, 0, 0);
+    ctx.save(); ctx.translate(CONFIG.gridOffsetX, CONFIG.gridOffsetY);
+    const time = Date.now();
+    
+    // Check if GRID is ready before looping
+    if(GRID && GRID.length) {
+        for(let r=0; r<CONFIG.gridRows; r++) {
+            for(let c=0; c<CONFIG.gridCols; c++) {
+                if (GRID[r][c]===2) {
+                    const glow = Math.sin(time/500)*5 + 10;
+                    const x = c*ts+ts/2, y = r*ts+ts/2;
+                    ctx.shadowColor = '#0f0'; ctx.shadowBlur = glow; ctx.fillStyle = '#0f0';
+                    for(let i=0; i<3; i++) { ctx.beginPath(); ctx.arc(x + Math.sin(i*2 + time/1000)*ts/4, y + Math.cos(i*2 + time/1000)*ts/4, ts/6, 0, Math.PI*2); ctx.fill(); }
+                    ctx.shadowBlur = 0;
+                }
+                if (GRID[r][c]===4) {
+                    const o = r < 2 ? -1 : 1; const bx = c*ts, by = r*ts;
+                    const hp = o===1 ? bases.p : bases.e;
+                    ctx.fillStyle = o===1 ? CONFIG.colors.p : CONFIG.colors.e;
+                    ctx.fillRect(bx+4, by+4, ts-8, ts-8);
+                    ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.strokeRect(bx+4, by+4, ts-8, ts-8);
+                    ctx.fillStyle = '#000'; ctx.fillRect(bx, by-6, ts, 4);
+                    ctx.fillStyle = o===1?'#0f0':'#f00'; ctx.fillRect(bx, by-6, ts*(hp/2000), 4);
+                }
             }
         }
     }
-    if (spawnFlash>0) { ctx.fillStyle = 'rgba(0,255,0,0.3)'; ctx.fillRect(0, (myPlayerId===1?CONFIG.gridRows-2:0)*ts, CONFIG.gridCols*ts, 2*ts); }
 
+    debris.forEach(d => {
+        const x = d.x*ts + ts/2, y = d.y*ts + ts/2;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(d.rot);
+        ctx.fillStyle = '#333'; ctx.fillRect(-ts/4, -ts/4, ts/2, ts/2);
+        ctx.restore();
+    });
     units.forEach(u => {
-        const cx = u.vx*ts + ts/2, cy = u.vy*ts + ts/2;
-        const s = DB[u.key].scale || 0.35;
-        const r = ts * s;
-        
-        // Recoil Calc
-        let rx = 0, ry = 0;
-        if (u.recoil > 0) {
-            const recoilPix = u.recoil * (ts * 0.05);
-            rx = -Math.cos(u.attackAngle) * recoilPix;
-            ry = -Math.sin(u.attackAngle) * recoilPix;
-        }
-        const dx = cx + rx;
-        const dy = cy + ry;
-        
+        const x = u.vx*ts + ts/2, y = u.vy*ts + ts/2 - (u.hoverOffset||0)*ts;
+        const col = u.owner===1 ? CONFIG.colors.p : CONFIG.colors.e;
         if (selectedUnit === u) {
-            ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(dx, dy, r+5, 0, Math.PI*2); ctx.stroke();
-            if (u.path && u.path.length > 0) {
-                drawUnitPath(u, ts);
-            }
+            ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; 
+            ctx.beginPath(); ctx.arc(x, y, ts*0.4, 0, Math.PI*2); ctx.stroke();
+            ctx.beginPath(); ctx.arc(x, y, ts*0.45 + Math.sin(time/200)*2, 0 + time/1000, Math.PI + time/1000); ctx.stroke();
+            if (u.path.length) drawUnitPath(u, ts);
         }
-        ctx.fillStyle = u.owner===1 ? CONFIG.colors.p : CONFIG.colors.e;
-        
-        // Missile Car Drawing
-        if (u.key === 'missile') {
-            ctx.fillRect(dx-r, dy-r, r*2, r*2);
-            ctx.fillStyle = '#222'; ctx.fillRect(dx-r*0.8, dy-r*0.8, r*1.6, r*1.6);
-            ctx.fillStyle = '#888'; const tr = r*0.25;
-            ctx.beginPath();
-            ctx.arc(dx-r*0.4, dy-r*0.4, tr, 0, Math.PI*2); ctx.arc(dx+r*0.4, dy-r*0.4, tr, 0, Math.PI*2);
-            ctx.arc(dx-r*0.4, dy+r*0.4, tr, 0, Math.PI*2); ctx.arc(dx+r*0.4, dy+r*0.4, tr, 0, Math.PI*2);
-            ctx.fill();
-        } 
-        else {
-            ctx.beginPath();
-            if(u.type==='infantry') ctx.arc(dx, dy, r, 0, Math.PI*2); 
-            else if (u.type==='vehicle') ctx.rect(dx-r, dy-r, r*2, r*2);
-            else { ctx.moveTo(dx, dy-r); ctx.lineTo(dx+r, dy+r); ctx.lineTo(dx-r, dy+r); }
-            ctx.fill();
-            ctx.fillStyle = '#000'; ctx.font = (ts*s*1.5)+'px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(DB[u.key].icon, dx, dy);
+        ctx.save(); ctx.translate(x, y);
+        drawUnitShape(u.key, col, ts, u);
+        if (u.hp < u.maxHp || selectedUnit === u) {
+            ctx.fillStyle = '#000'; ctx.fillRect(-10, -ts/2 - 6, 20, 3);
+            ctx.fillStyle = u.hp > u.maxHp*0.5 ? '#0f0' : '#f00'; 
+            ctx.fillRect(-10, -ts/2 - 6, 20 * (u.hp/u.maxHp), 3);
         }
-        
-        ctx.fillStyle = 'red'; ctx.fillRect(dx-r, dy-r-8, r*2, 3);
-        ctx.fillStyle = '#0f0'; ctx.fillRect(dx-r, dy-r-8, r*2*(u.hp/u.maxHp), 3);
+        ctx.restore();
     });
-
     projectiles.forEach(p => {
-        const x=p.x*ts+ts/2, y=p.y*ts+ts/2;
-        if(p.t==='nuke') { 
-            const angle = Math.atan2(p.ty - p.y, p.tx - p.x) + Math.PI/2;
-            ctx.save(); ctx.translate(x, y); ctx.rotate(angle);
-            ctx.fillStyle = `rgba(255, ${Math.random()*255}, 0, 0.8)`; ctx.beginPath(); ctx.moveTo(-ts*0.1, ts*0.2); ctx.lineTo(0, ts*0.5 + Math.random()*ts*0.2); ctx.lineTo(ts*0.1, ts*0.2); ctx.fill();
-            ctx.fillStyle = '#e0e0e0'; ctx.beginPath(); ctx.ellipse(0, 0, ts*0.12, ts*0.25, 0, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#ff3333'; ctx.beginPath(); ctx.arc(0, -ts*0.25, ts*0.12, Math.PI, 0); ctx.fill();
-            ctx.fillStyle = '#444'; ctx.beginPath(); ctx.moveTo(-ts*0.12, ts*0.1); ctx.lineTo(-ts*0.25, ts*0.3); ctx.lineTo(-ts*0.05, ts*0.2); ctx.fill();
-            ctx.beginPath(); ctx.moveTo(ts*0.12, ts*0.1); ctx.lineTo(ts*0.25, ts*0.3); ctx.lineTo(ts*0.05, ts*0.2); ctx.fill();
-            ctx.fillStyle = '#000'; ctx.font = `bold ${ts*0.2}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('☢', 0, 0);
-            ctx.restore();
+        const x = p.x*ts + ts/2, y = p.y*ts + ts/2;
+        ctx.save(); ctx.translate(x, y); ctx.rotate(p.angle);
+        if (p.t === 'missile') {
+            ctx.shadowBlur = 5; ctx.shadowColor = '#fa0';
+            ctx.fillStyle = '#fff'; ctx.fillRect(-4, -2, 8, 4);
+            ctx.fillStyle = '#f50'; ctx.beginPath(); ctx.moveTo(-4,0); ctx.lineTo(-12, -3); ctx.lineTo(-12, 3); ctx.fill();
+        } else if (p.t === 'bullet') {
+            ctx.shadowBlur = 4; ctx.shadowColor = p.c;
+            ctx.fillStyle = p.c; ctx.fillRect(-3, -1, 6, 2);
+        } else if (p.t === 'nuke') {
+            ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(0,0, 4, 0, Math.PI*2); ctx.fill();
         }
-        else if (p.t === 'missile') {
-            ctx.save(); ctx.translate(x, y); 
-            let angle = p.angle !== undefined ? p.angle : 0;
-            ctx.rotate(angle + Math.PI/2); 
-            ctx.fillStyle = `rgba(255, ${100+Math.random()*155}, 0, 0.8)`;
-            ctx.beginPath(); ctx.moveTo(-ts*0.03, 0); ctx.lineTo(0, ts*0.15 + Math.random()*ts*0.1); ctx.lineTo(ts*0.03, 0); ctx.fill();
-            ctx.fillStyle = '#eee'; ctx.fillRect(-ts*0.03, -ts*0.15, ts*0.06, ts*0.15);
-            ctx.fillStyle = '#f00'; ctx.beginPath(); ctx.moveTo(-ts*0.03, -ts*0.15); ctx.lineTo(0, -ts*0.22); ctx.lineTo(ts*0.03, -ts*0.15); ctx.fill();
-            ctx.restore();
-        }
-        else if (p.t === 'bullet') {
-            ctx.save();
-            ctx.translate(x, y);
-            ctx.rotate(p.angle);
-            ctx.fillStyle = p.c || '#fff';
-            ctx.fillRect(-ts*0.1, -ts*0.02, ts*0.2, ts*0.04);
-            ctx.restore();
-        }
+        ctx.restore();
     });
-
     particles.forEach(p => {
-        const px = p.x*ts+ts/2, py=p.y*ts+ts/2;
-        if (p.type === 'marker') {
-            const r = Math.max(0, ts/2 - (20-p.life)); 
-            ctx.beginPath(); ctx.arc(px,py, r, 0, Math.PI*2);
-            ctx.strokeStyle = 'rgba(255,255,255,'+(p.life/20)+')'; ctx.stroke();
-        } else {
-            ctx.fillStyle = p.c || 'orange'; const s = p.size ? ts*p.size : ts*0.2;
-            ctx.beginPath(); ctx.arc(px,py, s * (p.life/10), 0, Math.PI*2); ctx.fill();
-        }
+        const x = p.x*ts + ts/2, y = p.y*ts + ts/2;
+        ctx.globalAlpha = p.l / 15;
+        if (p.type === 'smoke') { ctx.fillStyle = '#555'; ctx.beginPath(); ctx.arc(x, y, (15-p.l)*0.5 + 2, 0, Math.PI*2); ctx.fill(); }
+        else if (p.type === 'flash') { ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, p.l, 0, Math.PI*2); ctx.fill(); }
+        else if (p.type === 'explode') { ctx.fillStyle = p.l > 5 ? '#ff0' : '#f00'; ctx.beginPath(); ctx.arc(x, y, (15-p.l), 0, Math.PI*2); ctx.fill(); }
+        else if (p.type === 'spark') { ctx.fillStyle = '#ffaa00'; ctx.fillRect(x,y, 2, 2); }
+        ctx.globalAlpha = 1;
     });
     if (mushroomCloud) mushroomCloud.draw(ctx, ts);
-    if (isPaused) { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(0,0, CONFIG.gridCols*ts, CONFIG.gridRows*ts); }
+    if (spawnFlash>0) { ctx.fillStyle = `rgba(0,255,0,${spawnFlash/20})`; ctx.fillRect(0, (myPlayerId===1?CONFIG.gridRows-2:0)*ts, CONFIG.gridCols*ts, 2*ts); }
     ctx.restore();
+}
+
+function drawUnitShape(key, col, ts, unit) {
+    const s = ts * 0.4;
+    let angle = 0;
+    if (unit.state === 'move' && unit.path.length) {
+        const next = unit.path[0];
+        angle = Math.atan2(next.y - unit.y, next.x - unit.x);
+    } else if (unit.attackAngle) {
+        angle = unit.attackAngle;
+    }
+
+    ctx.rotate(angle);
+    
+    // Flip sprite if facing left to keep text/emoji upright
+    if (Math.abs(angle) > Math.PI / 2) {
+        ctx.scale(1, -1);
+    }
+    
+    // Team indicator
+    ctx.fillStyle = col;
+    ctx.globalAlpha = 0.3;
+    ctx.beginPath(); ctx.arc(0, 0, s, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1.0;
+
+    // Draw Icon with transparency
+    ctx.font = `${ts*0.6}px Segoe UI Emoji, Arial`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.9;
+    ctx.fillText(DB[key].icon, 0, 0);
+    ctx.globalAlpha = 1.0;
 }
 
 function drawUnitPath(u, ts) {
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(u.vx * ts + ts / 2, u.vy * ts + ts / 2);
-    u.path.forEach(p => ctx.lineTo(p.x * ts + ts / 2, p.y * ts + ts / 2));
-    ctx.stroke();
-
-    // Draw arrow head
-    const lastPoint = u.path[u.path.length - 1];
-    const secondLastPoint = u.path.length > 1 ? u.path[u.path.length - 2] : { x: u.vx, y: u.vy };
-    const angle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
-    const arrowX = lastPoint.x * ts + ts / 2;
-    const arrowY = lastPoint.y * ts + ts / 2;
-
-    ctx.save();
-    ctx.translate(arrowX, arrowY);
-    ctx.rotate(angle);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-    ctx.beginPath();
-    ctx.moveTo(0, 0);
-    ctx.lineTo(-10, -5);
-    ctx.lineTo(-10, 5);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(u.vx*ts+ts/2, u.vy*ts+ts/2);
+    u.path.forEach(p => ctx.lineTo(p.x*ts+ts/2, p.y*ts+ts/2));
+    ctx.stroke(); ctx.setLineDash([]);
 }
 
-// --- UI FUNCTIONS ---
-function initSinglePlayer() {
-    const rads = document.getElementsByName('playerSide');
-    for(let r of rads) if(r.checked) myPlayerId = parseInt(r.value);
-    aiPlayerId = -myPlayerId;
-    isMultiplayer = false; isHost = true;
-    try { document.getElementById('modal-start').classList.add('hidden'); } catch(e) {}
-    generateMap(); startGame();
-}
-
-function initHostGame() {
-    const rads = document.getElementsByName('playerSide');
-    for(let r of rads) if(r.checked) myPlayerId = parseInt(r.value);
-    
-    document.getElementById('main-menu-panel').classList.add('hidden');
-    document.getElementById('lobby-ui').classList.remove('hidden');
-    document.getElementById('lobby-status').innerHTML = "Creating Room...";
-    
-    peer = new Peer();
-    peer.on('open', id => document.getElementById('lobby-status').innerHTML = `ID: <strong style="color:#fff; user-select:text">${id}</strong>`);
-    peer.on('connection', c => { conn=c; setupNet(); document.getElementById('lobby-status').innerHTML="Starting..."; setTimeout(() => startMP(true), 1000); });
-}
-
-function initJoinGame() {
-    const id = document.getElementById('join-id-input').value; if(!id) return;
-    document.getElementById('main-menu-panel').classList.add('hidden');
-    document.getElementById('lobby-ui').classList.remove('hidden');
-    peer = new Peer(); peer.on('open', () => { conn = peer.connect(id); setupNet(); });
-}
-
-function cancelLobby() {
-    if (peer) peer.destroy();
-    document.getElementById('lobby-ui').classList.add('hidden');
-    document.getElementById('main-menu-panel').classList.remove('hidden');
-}
-
-function setupNet() { conn.on('data', d => { if (isHost && d.t === 'in') handleInput(null, null, d.x, d.y, -myPlayerId); if (isHost && d.t === 'buy') buyUnit(d.k, -myPlayerId); if (!isHost) { if (d.t === 'init') { GRID=d.g; myPlayerId = -d.h; startGameClient(); } if (d.type === 'state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
-function startMP(host) { isMultiplayer = true; isHost = host; if (host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() {
-    document.getElementById('modal-start').classList.add('hidden');
-    document.getElementById('lobby-ui').classList.add('hidden');
-    money = CONFIG.startMoney;
-    enemyMoney = CONFIG.startMoney;
-    units=[]; projectiles=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null;
-    setupUIForSide(); updateHP(); SFX.init(); gameActive = true;
-}
-function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive = true; setupUIForSide(); SFX.init(); }
-function buyUnit(k, p) {
-    if (!gameActive || isPaused) return;
-    const d = DB[k], funds = p===1?money:enemyMoney;
-    if (funds >= d.cost) {
-        const rStart = p===1 ? CONFIG.gridRows-1 : 0, rEnd = p===1 ? CONFIG.gridRows-2 : 1;
-        let placed = false;
-        for (let r of [rStart, rEnd]) {
-            for (let c=0; c<CONFIG.gridCols; c++) {
-                if (!units.some(u => Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) {
-                    if(p===1) money-=d.cost; else enemyMoney-=d.cost;
-                    const u = new Unit(k, p, c, r);
-                    units.push(u);
-                    if (p === myPlayerId) { selectedUnit = u; spawnFlash=10; }
-                    placed = true;
-                    break;
-                }
-            }
-            if (placed) break;
-        }
-        if (!placed && p===myPlayerId) {
-            addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'red');
-        }
-    }
-}
-function handleInput(e, _, nx, ny, netPlayer) { if (e) { e.preventDefault(); const r = canvas.getBoundingClientRect(); const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left; const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top; nx = Math.floor((x - CONFIG.gridOffsetX)/CONFIG.tileSize); ny = Math.floor((y - CONFIG.gridOffsetY)/CONFIG.tileSize); } if (isMultiplayer && !isHost && !netPlayer) { conn.send({t:'in', x:nx, y:ny}); return; } const p = netPlayer || myPlayerId; if (nx >= 0 && nx < CONFIG.gridCols && ny >= 0 && ny < CONFIG.gridRows) { const clicked = units.find(u => Math.hypot(u.x-nx, u.y-ny) < 0.8); if (clicked && clicked.owner === p) { selectedUnit = clicked; return; } if (selectedUnit && selectedUnit.owner === p) { if (clicked && clicked.owner !== p) selectedUnit.setPath(nx, ny); else if ((GRID[ny][nx] !== 1 || selectedUnit.type === 'air')) selectedUnit.setPath(nx, ny); } } }
-function setupUIForSide() {
-    const playerIsGreen = myPlayerId === 1;
-    document.getElementById('right-hp-label').textContent = playerIsGreen ? "ALLIED" : "BROTHERS";
-    document.getElementById('right-hp-label').style.color = playerIsGreen ? CONFIG.colors.p : CONFIG.colors.e;
-    document.getElementById('left-hp-label').textContent = playerIsGreen ? "BROTHERS" : "ALLIED";
-    document.getElementById('left-hp-label').style.color = playerIsGreen ? CONFIG.colors.e : CONFIG.colors.p;
-}
-function updateHP() {
-    const MAX_HP = 2000;
-    const playerIsGreen = myPlayerId === 1;
-
-    const playerHP = playerIsGreen ? bases.p : bases.e;
-    const enemyHP = playerIsGreen ? bases.e : bases.p;
-
-    const rightHpContainer = document.getElementById('right-hp');
-    const leftHpContainer = document.getElementById('left-hp');
-
-    const rightBarFill = rightHpContainer.querySelector('.hp-bar-fill');
-    const rightBarText = rightHpContainer.querySelector('.hp-bar-text');
-    rightBarFill.style.width = `${(playerHP / MAX_HP) * 100}%`;
-    rightBarFill.style.backgroundColor = playerIsGreen ? CONFIG.colors.p : CONFIG.colors.e;
-    rightBarText.textContent = `${Math.round(playerHP)} / ${MAX_HP}`;
-
-    const leftBarFill = leftHpContainer.querySelector('.hp-bar-fill');
-    const leftBarText = leftHpContainer.querySelector('.hp-bar-text');
-    leftBarFill.style.width = `${(enemyHP / MAX_HP) * 100}%`;
-    leftBarFill.style.backgroundColor = playerIsGreen ? CONFIG.colors.e : CONFIG.colors.p;
-    leftBarText.textContent = `${Math.round(enemyHP)} / ${MAX_HP}`;
-}
-function togglePause() { isPaused = !isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
-function addParticles(x, y, count, color) { for(let i=0; i<count; i++) { particles.push({ x:x+(Math.random()-0.5), y:y+(Math.random()-0.5), life:15, c:color }); } }
-function endGame(outcome) {
-    if (!gameActive) return;
-    gameActive = false;
-    document.getElementById('end-title').innerText = outcome;
-    document.getElementById('modal-end').classList.remove('hidden');
-}
+function addParticles(x, y, count, type) { for(let i=0; i<count; i++) { particles.push({ x:x+(Math.random()-0.5)*0.5, y:y+(Math.random()-0.5)*0.5, vx:(Math.random()-0.5)*0.05, vy:(Math.random()-0.5)*0.05, l:15, type:type }); } }
+function initSinglePlayer() { const rads=document.getElementsByName('playerSide'); for(let r of rads) if(r.checked) myPlayerId=parseInt(r.value); aiPlayerId=-myPlayerId; isMultiplayer=false; isHost=true; generateMap(); startGame(); }
+function initHostGame() { const rads=document.getElementsByName('playerSide'); for(let r of rads) if(r.checked) myPlayerId=parseInt(r.value); document.getElementById('main-menu-panel').classList.add('hidden'); document.getElementById('lobby-ui').classList.remove('hidden'); document.getElementById('lobby-status').innerHTML="Creating Room..."; peer=new Peer(); peer.on('open', id => document.getElementById('lobby-status').innerHTML = `ID: <strong style="color:#fff; user-select:text">${id}</strong>`); peer.on('connection', c => { conn=c; setupNet(); document.getElementById('lobby-status').innerHTML="Starting..."; setTimeout(() => startMP(true), 1000); }); }
+function initJoinGame() { const id=document.getElementById('join-id-input').value; if(!id) return; document.getElementById('main-menu-panel').classList.add('hidden'); document.getElementById('lobby-ui').classList.remove('hidden'); peer=new Peer(); peer.on('open', () => { conn=peer.connect(id); setupNet(); }); }
+function cancelLobby() { if(peer) peer.destroy(); document.getElementById('lobby-ui').classList.add('hidden'); document.getElementById('main-menu-panel').classList.remove('hidden'); }
+function setupNet() { conn.on('data', d => { if(isHost && d.t==='in') handleInput(null, null, d.x, d.y, -myPlayerId); if(isHost && d.t==='buy') buyUnit(d.k, -myPlayerId); if(!isHost) { if(d.t==='init') { GRID=d.g; myPlayerId=-d.h; startGameClient(); } if(d.type==='state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; n.hoverOffset=x.ho; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
+function startMP(host) { isMultiplayer=true; isHost=host; if(host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
+function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; renderStaticMap(); }
+function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive=true; setupUIForSide(); SFX.init(); renderStaticMap(); }
+function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], funds=p===1?money:enemyMoney; if(funds >= d.cost) { const rStart=p===1?CONFIG.gridRows-1:0; let placed=false; for(let r of [rStart, p===1?CONFIG.gridRows-2:1]) { for(let c=0; c<CONFIG.gridCols; c++) { if(!units.some(u=>Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u=new Unit(k, p, c, r); units.push(u); if(p===myPlayerId) { selectedUnit=u; spawnFlash=10; } placed=true; break; } } if(placed) break; } if(!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'explode'); } }
+function handleInput(e, _, nx, ny, netPlayer) { if(e) { e.preventDefault(); const r = canvas.getBoundingClientRect(); const x = (e.touches ? e.touches[0].clientX : e.clientX) - r.left; const y = (e.touches ? e.touches[0].clientY : e.clientY) - r.top; nx = Math.floor((x - CONFIG.gridOffsetX)/CONFIG.tileSize); ny = Math.floor((y - CONFIG.gridOffsetY)/CONFIG.tileSize); } if(isMultiplayer && !isHost && !netPlayer) { conn.send({t:'in', x:nx, y:ny}); return; } const p = netPlayer || myPlayerId; if (nx >= 0 && nx < CONFIG.gridCols && ny >= 0 && ny < CONFIG.gridRows) { const clicked = units.find(u => Math.hypot(u.x-nx, u.y-ny) < 0.8); if(clicked && clicked.owner === p) { selectedUnit = clicked; return; } if(selectedUnit && selectedUnit.owner === p) { if (clicked && clicked.owner !== p) selectedUnit.setPath(nx, ny); else if ((GRID[ny][nx] !== 1 || selectedUnit.type === 'air')) selectedUnit.setPath(nx, ny); } } }
+function setupUIForSide() { const g=myPlayerId===1; document.getElementById('right-hp-label').innerText = g ? "ALLIED" : "BROTHERS"; document.getElementById('right-hp-label').style.color = g ? CONFIG.colors.p : CONFIG.colors.e; document.getElementById('left-hp-label').innerText = g ? "BROTHERS" : "ALLIED"; document.getElementById('left-hp-label').style.color = g ? CONFIG.colors.e : CONFIG.colors.p; }
+function updateHP() { const max=2000, g=myPlayerId===1, php=g?bases.p:bases.e, ehp=g?bases.e:bases.p; const rb=document.getElementById('right-hp').querySelector('.hp-bar-fill'); rb.style.width=`${(php/max)*100}%`; rb.style.backgroundColor=g?CONFIG.colors.p:CONFIG.colors.e; document.getElementById('right-hp').querySelector('.hp-bar-text').innerText=`${Math.round(php)}/${max}`; const lb=document.getElementById('left-hp').querySelector('.hp-bar-fill'); lb.style.width=`${(ehp/max)*100}%`; lb.style.backgroundColor=g?CONFIG.colors.e:CONFIG.colors.p; document.getElementById('left-hp').querySelector('.hp-bar-text').innerText=`${Math.round(ehp)}/${max}`; }
+function togglePause() { isPaused=!isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
+function endGame(o) { if(!gameActive) return; gameActive=false; document.getElementById('end-title').innerText = o; document.getElementById('modal-end').classList.remove('hidden'); }
 
 canvas = document.getElementById('gameCanvas'); ctx = canvas.getContext('2d');
-window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; const t = Math.min(canvas.width/CONFIG.gridCols, canvas.height/CONFIG.gridRows); CONFIG.tileSize = Math.max(1, Math.floor(t)); CONFIG.gridOffsetX = (canvas.width - CONFIG.tileSize*CONFIG.gridCols)/2; CONFIG.gridOffsetY = (canvas.height - CONFIG.tileSize*CONFIG.gridRows)/2; });
+window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; const t = Math.min(canvas.width/CONFIG.gridCols, canvas.height/CONFIG.gridRows); CONFIG.tileSize = Math.max(1, Math.floor(t)); CONFIG.gridOffsetX = (canvas.width - CONFIG.tileSize*CONFIG.gridCols)/2; CONFIG.gridOffsetY = (canvas.height - CONFIG.tileSize*CONFIG.gridRows)/2; renderStaticMap(); });
 window.dispatchEvent(new Event('resize'));
 canvas.addEventListener('mousedown', e => handleInput(e)); canvas.addEventListener('touchstart', e => handleInput(e));
 const menu = document.getElementById('build-menu'); Object.keys(DB).forEach(k => { const b = document.createElement('div'); b.className='card'; b.dataset.cost=DB[k].cost; b.innerHTML = `<span class="card-cost">${DB[k].cost}</span><div class="card-icon">${DB[k].icon}</div><div class="card-name">${DB[k].n}</div>`; b.onclick = (e) => { e.stopPropagation(); if(isMultiplayer && !isHost) conn.send({t:'buy', k:k}); else buyUnit(k, myPlayerId); }; menu.appendChild(b); });
-generateMap(); requestAnimationFrame(loop);
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
