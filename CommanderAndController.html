@@ -762,11 +762,42 @@ function update3D() {
             mesh.position.y = 0;
         }
 
-        // Recoil effect (scale or slide back)
+        // Recoil effect & Animations
         if (u.recoil > 0) {
-            // Simple visual shake
-             mesh.position.x += (Math.random()-0.5)*0.2;
-             mesh.position.z += (Math.random()-0.5)*0.2;
+            // General shake for all
+            mesh.position.x += (Math.random()-0.5)*0.1;
+            mesh.position.z += (Math.random()-0.5)*0.1;
+
+            // Unit specific animations
+            if (u.key === 'tank') {
+                const barrel = mesh.getObjectByName('barrel');
+                if (barrel) {
+                    const recoilDist = Math.min(u.recoil * 0.2, 0.5); // Max 0.5 back
+                    barrel.position.z = 2.5 - recoilDist; // Default is 2.5
+
+                    const flash = barrel.getObjectByName('flash');
+                    if (flash) flash.visible = u.recoil > 4; // Flash for first few frames
+                }
+            } else if (u.key === 'buggy' || u.key === 'missile') {
+                // Harder shake/kickback
+                const kick = Math.sin(u.recoil) * 0.2;
+                mesh.translateZ(-kick); // Local Z is backward
+            } else if (u.key === 'orca') {
+                // Dip nose
+                mesh.rotation.x = Math.sin(u.recoil) * 0.1;
+            }
+        } else {
+             // Reset animations
+             if (u.key === 'tank') {
+                 const barrel = mesh.getObjectByName('barrel');
+                 if (barrel) {
+                     barrel.position.z += (2.5 - barrel.position.z) * 0.2; // Return to pos
+                     const flash = barrel.getObjectByName('flash');
+                     if (flash) flash.visible = false;
+                 }
+             } else if (u.key === 'orca') {
+                 mesh.rotation.x *= 0.9;
+             }
         }
     });
 
@@ -1014,16 +1045,31 @@ function createUnitMesh(key, color) {
         const turret = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.8, 1, 32), matBody);
         turret.position.y = 2.2;
 
-        // Barrel
+        // Barrel Group
+        const barrelGroup = new THREE.Group();
+        barrelGroup.name = 'barrel';
+        barrelGroup.position.set(0, 2.2, 2.5);
+
         const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 4, 32), matSilver);
         barrel.rotation.x = Math.PI/2;
-        barrel.position.set(0, 2.2, 2.5);
+        barrelGroup.add(barrel);
 
         const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.5, 32), matBlack);
         muzzle.rotation.x = Math.PI/2;
-        muzzle.position.set(0, 2.2, 4.5);
+        muzzle.position.set(0, 0, 2);
+        barrelGroup.add(muzzle);
 
-        group.add(lTread, rTread, hull, turret, barrel, muzzle);
+        // Muzzle Flash
+        const flashGeo = new THREE.ConeGeometry(0.5, 2, 8);
+        flashGeo.rotateX(Math.PI/2);
+        flashGeo.translate(0, 0, 1);
+        const flash = new THREE.Mesh(flashGeo, new THREE.MeshBasicMaterial({color: 0xffff00}));
+        flash.name = 'flash';
+        flash.visible = false;
+        flash.position.set(0, 0, 2.2);
+        barrelGroup.add(flash);
+
+        group.add(lTread, rTread, hull, turret, barrelGroup);
 
     } else if (key === 'orca') {
         // VTOL Aircraft
