@@ -246,12 +246,16 @@
 <script>
 const CONFIG = { gridCols: 11, gridRows: 15, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 500, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
 
+// Updated Balance:
+// Missile vs Air: 4.0x damage (Instant kill on Orca)
+// Orca vs Missile: 0.1x damage (Very weak against its counter)
+// Orca vs Vehicle: 2.5x damage (Strong vs Tank)
 const DB = {
     rifle: { n:'Rifle', cost:50, hp:60, dmg:10, spd:0.0075, rng:1.5, cd:40, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.1, air: 0.1, building: 0.5 } },
-    missile: { n:'Launcher', cost:150, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.5, vehicle: 2.0, air: 3.5, building: 2.0 } },
+    missile: { n:'Launcher', cost:150, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.5, vehicle: 2.0, air: 4.0, building: 2.0 } },
     buggy: { n:'Buggy', cost:200, hp:120, dmg:12, spd:0.0125, rng:2.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.0, vehicle: 0.3, air: 3.5, building: 0.5 } },
     tank: { n:'Tank', cost:300, hp:350, dmg:60, spd:0.005, rng:2.0, cd:100, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.5, air: 0.0, building: 1.5 } },
-    orca: { n:'Orca', cost:400, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 1.0, air: 1.0, building: 2.0 } },
+    orca: { n:'Orca', cost:400, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 2.5, missile: 0.1, air: 1.0, building: 2.0 } },
     harv: { n:'Harvester', cost:250, hp:350, dmg:0, spd:0.0035, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
 };
 
@@ -441,8 +445,9 @@ class Unit {
         let t = null, max = 0;
         units.forEach(u => {
             if (u.owner !== this.owner && Math.hypot(this.x - u.x, this.y - u.y) <= this.rng) {
-                let m = this.mods[u.type] || 1;
-                if (this.dmg * m > 1 && this.dmg * m > max) { max = this.dmg * m; t = u; }
+                let m = (this.mods[u.key] !== undefined) ? this.mods[u.key] : (this.mods[u.type] || 1);
+                // m=0 check ensures tank doesn't target air
+                if (m > 0 && this.dmg * m > 1 && this.dmg * m > max) { max = this.dmg * m; t = u; }
             }
         });
 
@@ -459,7 +464,7 @@ class Unit {
         this.cd = this.cdMax;
         this.recoil = 5;
         this.attackAngle = Math.atan2(t.y - this.y, t.x - this.x);
-        let m = this.mods[t.type] || 1;
+        let m = (this.mods[t.key] !== undefined) ? this.mods[t.key] : (this.mods[t.type] || 1);
 
         const projSpeed = 0.08;
 
@@ -481,7 +486,8 @@ class Unit {
         if (attacker && units.includes(attacker)) {
             const dist = Math.hypot(this.x - attacker.x, this.y - attacker.y);
             // Check if I can hurt them
-            const canHit = (this.mods[attacker.type] || 1) * this.dmg > 1;
+            let myMod = (this.mods[attacker.key] !== undefined) ? this.mods[attacker.key] : (this.mods[attacker.type] || 0);
+            const canHit = (myMod * this.dmg) > 1;
             const inRange = dist <= this.rng;
 
             if (canHit && inRange) {
