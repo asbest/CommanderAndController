@@ -454,7 +454,7 @@ function createTerrain() {
 
     // Ground
     const geometry = new THREE.PlaneGeometry(CONFIG.gridCols * TILE_SIZE_3D, CONFIG.gridRows * TILE_SIZE_3D);
-    const material = new THREE.MeshLambertMaterial({ color: 0x111111 });
+    const material = new THREE.MeshLambertMaterial({ color: 0x222222 });
     groundPlane = new THREE.Mesh(geometry, material); // Save to global for raycasting
     groundPlane.rotation.x = -Math.PI / 2;
     groundPlane.position.set((CONFIG.gridCols * TILE_SIZE_3D) / 2, -0.1, (CONFIG.gridRows * TILE_SIZE_3D) / 2);
@@ -467,7 +467,7 @@ function createTerrain() {
     // Align grid helper to match tile size
     gridHelper.scale.set(CONFIG.gridCols/Math.max(CONFIG.gridCols, CONFIG.gridRows), 1, CONFIG.gridRows/Math.max(CONFIG.gridCols, CONFIG.gridRows));
     // Re-create grid helper manually to be exact
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x003300, opacity: 0.3, transparent: true });
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x006600, opacity: 0.5, transparent: true });
     const gridGeo = new THREE.BufferGeometry();
     const vertices = [];
     for(let i=0; i<=CONFIG.gridCols; i++) {
@@ -1035,8 +1035,8 @@ function init3D() {
     hudCtx = hudCanvas.getContext('2d');
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x050505);
-    scene.fog = new THREE.Fog(0x050505, 50, 150);
+    scene.background = new THREE.Color(0x0a0a0a);
+    scene.fog = new THREE.Fog(0x0a0a0a, 200, 600);
 
     // Camera: Top-down perspective
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
@@ -1050,7 +1050,7 @@ function init3D() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 
     // Lights
-    const ambientLight = new THREE.AmbientLight(0x404040, 0.6); // Soft white light
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
     scene.add(ambientLight);
 
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
