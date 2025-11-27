@@ -267,6 +267,9 @@ let unitMeshes = new Map(); // Map unit object to mesh
 let projectileMeshes = [];
 let terrainGroup = null;
 const TILE_SIZE_3D = 10;
+const POOL = { proj: [], part: [] };
+const GEOM = {};
+const MATS = {};
 
 const aiState = { strategy: 'hold', buildTarget: null };
 
@@ -720,8 +723,60 @@ function drawHUD() {
     }
 }
 
+function initGeometries() {
+    if(GEOM.init) return;
+    GEOM.init = true;
+    // Fallback for r128 which lacks CapsuleGeometry
+    GEOM.bullet = new THREE.CylinderGeometry(0.15, 0.15, 1, 8); GEOM.bullet.rotateX(Math.PI/2);
+    GEOM.mBody = new THREE.CylinderGeometry(0.3, 0.3, 2, 8); GEOM.mBody.rotateX(Math.PI/2);
+    GEOM.mNose = new THREE.ConeGeometry(0.3, 0.8, 8); GEOM.mNose.rotateX(Math.PI/2); GEOM.mNose.translate(0, 0, 1.4);
+    GEOM.mFin = new THREE.BoxGeometry(1.2, 0.1, 0.5);
+    GEOM.mFire = new THREE.ConeGeometry(0.2, 0.8, 8); GEOM.mFire.rotateX(-Math.PI/2); GEOM.mFire.translate(0, 0, -1.2);
+    GEOM.box = new THREE.BoxGeometry(1, 1, 1);
+    GEOM.nuke = new THREE.SphereGeometry(1, 16, 16);
+    GEOM.nukeTrail = new THREE.ConeGeometry(0.5, 3, 8); GEOM.nukeTrail.rotateX(Math.PI/2); GEOM.nukeTrail.translate(0, 0, -2);
+
+    MATS.white = new THREE.MeshLambertMaterial({ color: 0xeeeeee });
+    MATS.red = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+    MATS.dark = new THREE.MeshLambertMaterial({ color: 0x333333 });
+    MATS.fire = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    MATS.bulletP = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    MATS.bulletE = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    MATS.nuke = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    MATS.grey = new THREE.MeshBasicMaterial({ color: 0x888888 });
+}
+
+function getProjMesh() {
+    // Find next available in pool
+    const item = POOL.proj.find(i => !i.g.visible);
+    if (!item) {
+        const g = new THREE.Group();
+        const m = new THREE.Group();
+        m.add(new THREE.Mesh(GEOM.mBody, MATS.white), new THREE.Mesh(GEOM.mNose, MATS.red));
+        const f1=new THREE.Mesh(GEOM.mFin, MATS.dark); f1.position.z=-0.8;
+        const f2=new THREE.Mesh(GEOM.mFin, MATS.dark); f2.position.z=-0.8; f2.rotation.z=Math.PI/2;
+        m.add(f1, f2, new THREE.Mesh(GEOM.mFire, MATS.fire));
+        const b = new THREE.Mesh(GEOM.bullet, MATS.bulletP);
+        const n = new THREE.Group(); n.add(new THREE.Mesh(GEOM.nuke, MATS.nuke), new THREE.Mesh(GEOM.nukeTrail, MATS.grey));
+        g.add(m, b, n); scene.add(g);
+        const newItem = { g, m, b, n };
+        POOL.proj.push(newItem);
+        newItem.g.visible = true;
+        return newItem;
+    }
+    item.g.visible = true; item.m.visible = false; item.b.visible = false; item.n.visible = false;
+    return item;
+}
+
+function getPartMesh() {
+    const mesh = POOL.part.find(m => !m.visible);
+    if (!mesh) { const m = new THREE.Mesh(GEOM.box, new THREE.MeshBasicMaterial({ transparent: true })); scene.add(m); POOL.part.push(m); m.visible=true; return m; }
+    mesh.visible = true; return mesh;
+}
+
 function update3D() {
     if(!scene) return;
+    initGeometries();
 
     // Manage Unit Meshes
     // 1. Remove dead units
@@ -801,84 +856,30 @@ function update3D() {
         }
     });
 
-    // Manage Projectiles
-    // Simple approach: Clear all projectile meshes and recreate (inefficient but safe for now)
-    // Or just map them. Since projectiles are transient objects in array, mapping is hard unless we add ID.
-    // Let's just use a pool or clear/redraw. Projectile count is low.
-    // Better: Maintain a group of projectiles.
-    if (!window.projectileGroup) {
-        window.projectileGroup = new THREE.Group();
-        scene.add(window.projectileGroup);
-    }
-
-    // Clear old
-    while(window.projectileGroup.children.length > 0){
-        window.projectileGroup.remove(window.projectileGroup.children[0]);
-    }
+    // Manage Projectiles (POOLING)
+    POOL.proj.forEach(i => i.g.visible = false); // Hide all first
+    let pIdx = 0;
 
     projectiles.forEach(p => {
-        let mesh;
-        if (p.t === 'missile') {
-            // Rocket Shape
-            mesh = new THREE.Group();
-
-            // Body
-            const bodyGeo = new THREE.CylinderGeometry(0.3, 0.3, 2, 32);
-            bodyGeo.rotateX(Math.PI / 2);
-            const bodyMat = new THREE.MeshLambertMaterial({ color: 0xeeeeee }); // White body
-            const body = new THREE.Mesh(bodyGeo, bodyMat);
-
-            // Nose
-            const noseGeo = new THREE.ConeGeometry(0.3, 0.8, 32);
-            noseGeo.rotateX(Math.PI / 2);
-            noseGeo.translate(0, 0, 1.4);
-            const noseMat = new THREE.MeshLambertMaterial({ color: 0xff0000 }); // Red tip
-            const nose = new THREE.Mesh(noseGeo, noseMat);
-
-            // Fins
-            const finGeo = new THREE.BoxGeometry(1.2, 0.1, 0.5);
-            const finMat = new THREE.MeshLambertMaterial({ color: 0x333333 });
-            const fins1 = new THREE.Mesh(finGeo, finMat);
-            fins1.position.z = -0.8;
-            const fins2 = new THREE.Mesh(finGeo, finMat);
-            fins2.position.z = -0.8;
-            fins2.rotation.z = Math.PI / 2;
-
-            // Exhaust
-            const fireGeo = new THREE.ConeGeometry(0.2, 0.8, 32);
-            fireGeo.rotateX(-Math.PI / 2);
-            fireGeo.translate(0, 0, -1.2);
-            const fireMat = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
-            const fire = new THREE.Mesh(fireGeo, fireMat);
-
-            mesh.add(body, nose, fins1, fins2, fire);
-
-        } else if (p.t === 'bullet') {
-            // Glowing streak
-            const geo = new THREE.CapsuleGeometry(0.15, 1, 4, 16);
-            geo.rotateX(Math.PI / 2);
-            const mat = new THREE.MeshBasicMaterial({ color: p.c });
-            mesh = new THREE.Mesh(geo, mat);
-        } else if (p.t === 'nuke') {
-            mesh = new THREE.Group();
-            const geo = new THREE.SphereGeometry(1, 32, 32);
-            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            mesh.add(new THREE.Mesh(geo, mat));
-            // Add a little falling trail
-            const trailGeo = new THREE.ConeGeometry(0.5, 3, 32);
-            trailGeo.rotateX(Math.PI/2);
-            trailGeo.translate(0, 0, -2);
-            mesh.add(new THREE.Mesh(trailGeo, new THREE.MeshBasicMaterial({color: 0x888888})));
+        // Reuse or Create
+        let item = POOL.proj[pIdx];
+        if (!item) {
+             // Logic duplicated from getProjMesh but simpler linear access
+             item = getProjMesh(); // This might search, but since we are filling linear, it should append
+        } else {
+             item.g.visible = true; item.m.visible = false; item.b.visible = false; item.n.visible = false;
         }
+        pIdx++;
 
-        if(mesh) {
-            const x = p.x * TILE_SIZE_3D + TILE_SIZE_3D/2;
-            const z = p.y * TILE_SIZE_3D + TILE_SIZE_3D/2;
-            mesh.position.set(x, 4, z);
-            mesh.rotation.y = -p.angle + Math.PI/2;
-            mesh.scale.set(1.5, 1.5, 1.5);
-            window.projectileGroup.add(mesh);
-        }
+        const x = p.x * TILE_SIZE_3D + TILE_SIZE_3D/2;
+        const z = p.y * TILE_SIZE_3D + TILE_SIZE_3D/2;
+        item.g.position.set(x, 4, z);
+        item.g.rotation.y = -p.angle + Math.PI/2;
+        item.g.scale.set(1.5, 1.5, 1.5);
+
+        if (p.t === 'missile') item.m.visible = true;
+        else if (p.t === 'bullet') { item.b.visible = true; item.b.material = (p.c === '#0f0' || p.c === '#00ff00' || p.c === '#44ff44') ? MATS.bulletP : MATS.bulletE; }
+        else if (p.t === 'nuke') item.n.visible = true;
     });
 
     // Debris
@@ -898,21 +899,19 @@ function update3D() {
         window.debrisGroup.add(mesh);
     });
 
-    // Particles/Explosions
-    if (!window.particleGroup) {
-        window.particleGroup = new THREE.Group();
-        scene.add(window.particleGroup);
-    }
-     while(window.particleGroup.children.length > 0){
-        window.particleGroup.remove(window.particleGroup.children[0]);
-    }
+    // Particles (POOLING)
+    POOL.part.forEach(m => m.visible = false);
+    let partIdx = 0;
     particles.forEach(p => {
+        let m = POOL.part[partIdx];
+        if(!m) m = getPartMesh(); else m.visible = true;
+        partIdx++;
+
         const size = p.type==='explode' ? (15-p.l)*0.2 : 0.5;
-        const geo = new THREE.BoxGeometry(size, size, size);
-        const mat = new THREE.MeshBasicMaterial({ color: p.type==='smoke'?0x555555:(p.type==='explode'?0xffaa00:0xffffff), transparent:true, opacity: p.l/15 });
-        const mesh = new THREE.Mesh(geo, mat);
-        mesh.position.set(p.x * TILE_SIZE_3D + TILE_SIZE_3D/2, 2, p.y * TILE_SIZE_3D + TILE_SIZE_3D/2);
-        window.particleGroup.add(mesh);
+        m.scale.set(size, size, size);
+        m.material.color.setHex(p.type==='smoke'?0x555555:(p.type==='explode'?0xffaa00:0xffffff));
+        m.material.opacity = p.l/15;
+        m.position.set(p.x * TILE_SIZE_3D + TILE_SIZE_3D/2, 2, p.y * TILE_SIZE_3D + TILE_SIZE_3D/2);
     });
 
     // Mushroom Cloud
