@@ -244,15 +244,15 @@
 </div>
 
 <script>
-const CONFIG = { gridCols: 11, gridRows: 15, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 200, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
+const CONFIG = { gridCols: 11, gridRows: 15, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 500, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
 
 const DB = {
-    rifle: { n:'Rifle', cost:40, hp:60, dmg:10, spd:0.0075, rng:1.5, cd:40, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.05, air: 0.05, building: 0.5 } },
-    missile: { n:'Launcher', cost:120, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.2, vehicle: 1.2, air: 1.5, building: 1.5 } },
-    buggy: { n:'Buggy', cost:160, hp:120, dmg:12, spd:0.0125, rng:1.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 2.5, vehicle: 0.2, air: 0.1, building: 0.75 } },
-    tank: { n:'Tank', cost:280, hp:350, dmg:60, spd:0.005, rng:2.0, cd:100, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.1, vehicle: 1.0, air: 0.0, building: 1.0 } },
-    orca: { n:'Orca', cost:360, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.2, vehicle: 1.5, air: 0.0, building: 2.0 } },
-    harv: { n:'Harvester', cost:200, hp:350, dmg:0, spd:0.0035, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
+    rifle: { n:'Rifle', cost:50, hp:60, dmg:10, spd:0.0075, rng:1.5, cd:40, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.1, air: 0.1, building: 0.5 } },
+    missile: { n:'Launcher', cost:150, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.5, vehicle: 2.0, air: 3.5, building: 2.0 } },
+    buggy: { n:'Buggy', cost:200, hp:120, dmg:12, spd:0.0125, rng:2.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.0, vehicle: 0.3, air: 3.5, building: 0.5 } },
+    tank: { n:'Tank', cost:300, hp:350, dmg:60, spd:0.005, rng:2.0, cd:100, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.5, air: 0.0, building: 1.5 } },
+    orca: { n:'Orca', cost:400, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 1.0, air: 1.0, building: 2.0 } },
+    harv: { n:'Harvester', cost:250, hp:350, dmg:0, spd:0.0035, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
 };
 
 const baseCoordinates = {
@@ -267,7 +267,7 @@ let selectedUnit = null, missileVal = 0, bases = { p: 2000, e: 2000 }, lastFrame
 let peer = null, conn = null;
 
 const aiState = {
-    strategy: 'balanced', // 'rush', 'heavy', 'balanced'
+    strategy: 'hold', 
     buildTarget: null,
 };
 
@@ -420,11 +420,20 @@ class Unit {
                 else { this.x=n.x; this.y=n.y; this.path.shift(); }
             } else {
                 this.state = 'idle';
+                // Auto Harvest
                 if (this.harvest && GRID[Math.round(this.y)] && GRID[Math.round(this.y)][Math.round(this.x)] === 2) this.state='harvest';
             }
-        } else if (this.state === 'idle' || this.state === 'harvest') {
+        } else if (this.state === 'idle') {
             const t = this.findTarget();
             if (t && Math.hypot(this.x-t.x, this.y-t.y) <= this.rng) this.attack(t);
+            // Auto Harvest Seek
+            if (this.harvest && GRID[Math.round(this.y)] && GRID[Math.round(this.y)][Math.round(this.x)] === 2) this.state='harvest';
+            else if (this.harvest && !this.path.length) {
+                const nearestTib = findNearestTile(this.x, this.y, 2);
+                if (nearestTib) this.setPath(nearestTib.x, nearestTib.y);
+            }
+        } else if (this.state === 'harvest') {
+            // Harvesting logic handled in global loop income
         }
     }
     setPath(tx, ty) { this.path = findPath(this, tx, ty); if (this.path.length > 0) this.state='move'; }
@@ -457,66 +466,87 @@ class Unit {
         if (this.proj === 'missile') {
             SFX.launch();
             addParticles(this.vx, this.vy, 3, '#fff');
-            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0' });
+            // Added attacker reference for retreat logic
+            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this });
         } else {
             if (this.key === 'tank') SFX.tank(); else SFX.shoot();
-            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: projSpeed, c: this.owner === 1 ? '#0f0' : '#f00' });
+            // Added attacker reference for retreat logic
+            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: projSpeed, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
         }
     }
-    takeDamage(a) { 
+    takeDamage(a, attacker) { 
         this.hp -= a; 
+        
+        // REACTION LOGIC: Stop to fight, or retreat if impossible
+        if (attacker && units.includes(attacker)) {
+            const dist = Math.hypot(this.x - attacker.x, this.y - attacker.y);
+            // Check if I can hurt them
+            const canHit = (this.mods[attacker.type] || 1) * this.dmg > 1;
+            const inRange = dist <= this.rng;
+
+            if (canHit && inRange) {
+                // STOP AND FIGHT
+                this.path = [];
+                this.state = 'idle';
+            } else {
+                // IMPOSSIBLE TO FIGHT: RETREAT
+                // Calculate retreat vector (away from attacker)
+                const retreatDist = 4;
+                const angle = Math.atan2(this.y - attacker.y, this.x - attacker.x);
+                let rx = this.x + Math.cos(angle) * retreatDist;
+                let ry = this.y + Math.sin(angle) * retreatDist;
+                // Clamp to grid
+                rx = Math.max(0, Math.min(CONFIG.gridCols - 1, rx));
+                ry = Math.max(0, Math.min(CONFIG.gridRows - 1, ry));
+                this.setPath(rx, ry);
+            }
+        } else {
+            // Unknown attacker or already dead, just stop moving if taking damage
+            if (this.state === 'move') {
+                this.path = [];
+                this.state = 'idle';
+            }
+        }
+
         particles.push({x:this.vx, y:this.vy, l:15, c:'#fa0'});
         if (this.hp <= 0) { units = units.filter(u => u !== this); if (selectedUnit===this) selectedUnit=null; particles.push({x:this.vx, y:this.vy, l:20, c:'#fff'}); }
     }
+}
+
+function findNearestTile(x, y, typeId) {
+    let nearest = null, minDst = Infinity;
+    for(let r=0; r<CONFIG.gridRows; r++) {
+        for(let c=0; c<CONFIG.gridCols; c++) {
+            if (GRID[r][c] === typeId) {
+                const d = Math.hypot(c - x, r - y);
+                if (d < minDst) { minDst = d; nearest = {x:c, y:r}; }
+            }
+        }
+    }
+    return nearest;
 }
 
 function isBaseUnderAttack(playerId) {
     const DEFENSE_RADIUS = 6;
     const baseCoord = baseCoordinates[playerId];
     if (!baseCoord) return false;
-
     for (const unit of units) {
         if (unit.owner !== playerId) {
-            const distance = Math.hypot(baseCoord.x - unit.x, baseCoord.y - unit.y);
-            if (distance <= DEFENSE_RADIUS) {
-                return true; // Found a threat
-            }
+            if (Math.hypot(baseCoord.x - unit.x, baseCoord.y - unit.y) <= DEFENSE_RADIUS) return true;
         }
     }
     return false;
 }
 
-function findUnoccupiedMissilePlatform() {
-    for(let r=0; r<CONFIG.gridRows; r++) {
-        for(let c=0; c<CONFIG.gridCols; c++) {
-            if (GRID[r][c] === 3) { // Is a missile platform tile
-                const isOccupied = units.some(u => Math.round(u.x) === c && Math.round(u.y) === r);
-                if (!isOccupied) {
-                    return { x: c, y: r }; // Found one
-                }
-            }
-        }
-    }
-    return null; // All platforms are occupied or non-existent
-}
-
-function getRankedCounters(enemyUnitType) {
-    if (!enemyUnitType) return [];
-
-    const counters = [];
-    for (const unitKey in DB) {
-        const unitData = DB[unitKey];
-        if (unitData.cost > 0) { // Exclude non-buildable units
-            const damageModifier = unitData.mods[enemyUnitType] || 0;
-            const potentialDamage = unitData.dmg * damageModifier;
-            counters.push({ unit: unitKey, effectiveness: potentialDamage });
-        }
-    }
-
-    // Sort by effectiveness in descending order
-    counters.sort((a, b) => b.effectiveness - a.effectiveness);
-
-    return counters.map(c => c.unit);
+function getBestCounter(enemyUnits) {
+    if (!enemyUnits || enemyUnits.length === 0) return 'rifle';
+    const counts = {};
+    enemyUnits.forEach(u => counts[u.type] = (counts[u.type] || 0) + 1);
+    const dominant = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    if (dominant === 'infantry') return 'buggy';
+    if (dominant === 'air') return 'missile';
+    if (dominant === 'vehicle') return 'orca'; 
+    return 'tank';
 }
 
 // --- MAIN LOOP ---
@@ -526,125 +556,108 @@ function loop(ts) {
         if (gameActive && !isPaused) {
             if (isHost) {
                 if (ts % 1000 < 20) { // Income
-                    let i1 = 3, i2 = 3;
-                    units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=4; else i2+=4; } });
+                    let i1 = 5, i2 = 5; // Base income
+                    units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=6; else i2+=6; } });
                     money+=i1; enemyMoney+=i2;
                 }
                 
                 if (!isMultiplayer) { // AI
                     aiTick++;
-                    if (aiTick % 30 === 0) { // Throttle AI
+                    if (aiTick % 40 === 0) {
                         const aiFunds = aiPlayerId === 1 ? money : enemyMoney;
+                        const myUnits = units.filter(u => u.owner === aiPlayerId);
+                        const enemyUnits = units.filter(u => u.owner !== aiPlayerId);
+                        const baseCoord = baseCoordinates[aiPlayerId];
+                        const enemyBaseCoord = baseCoordinates[aiPlayerId * -1];
 
-                        // Defensive logic
-                        const baseIsAttacked = isBaseUnderAttack(aiPlayerId);
-                        if (baseIsAttacked) {
-                            const baseCoord = baseCoordinates[aiPlayerId];
-                            const availableDefenders = units.filter(u => {
-                                if (u.owner !== aiPlayerId || u.harvest) return false;
-                                if (u.path.length > 0) {
-                                    const lastPathPoint = u.path[u.path.length - 1];
-                                    if (lastPathPoint.x === baseCoord.x && lastPathPoint.y === baseCoord.y) {
-                                        return false; // Already defending
-                                    }
-                                }
-                                return true;
+                        // 1. Base Defense (Highest Priority)
+                        if (isBaseUnderAttack(aiPlayerId)) {
+                            const attackers = enemyUnits.filter(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8);
+                            const primaryThreat = attackers[0] || {x: baseCoord.x, y: baseCoord.y};
+                            myUnits.forEach(u => {
+                                if (!u.harvest && u.state !== 'move') u.setPath(primaryThreat.x, primaryThreat.y);
                             });
-
-                            // Send up to 2 available units to defend
-                            for (let i = 0; i < Math.min(availableDefenders.length, 2); i++) {
-                                availableDefenders[i].setPath(baseCoord.x, baseCoord.y);
+                        } else {
+                            // 2. Economy
+                            const harvesters = myUnits.filter(u => u.harvest);
+                            if (harvesters.length < 1 && aiFunds >= DB.harv.cost) {
+                                if (!aiState.buildTarget || aiState.buildTarget !== 'harv') aiState.buildTarget = 'harv';
                             }
-                        }
-
-                        // Build logic (always active)
-                        if (units.filter(u => u.owner === aiPlayerId).length < 10) {
-                            // Step 1: Determine the Build Target if one isn't already set
+                            
+                            // 3. Production Decision (Tactical vs Random Aggression)
                             if (!aiState.buildTarget) {
-                                const enemyUnits = units.filter(u => u.owner !== aiPlayerId);
-                                if (enemyUnits.length > 0) {
-                                    const enemyTypeCounts = {};
-                                    enemyUnits.forEach(u => { enemyTypeCounts[u.type] = (enemyTypeCounts[u.type] || 0) + 1; });
-                                    const mostCommonEnemyType = Object.keys(enemyTypeCounts).reduce((a, b) => enemyTypeCounts[a] > enemyTypeCounts[b] ? a : b);
-
-                                    const rankedCounters = getRankedCounters(mostCommonEnemyType);
-
-                                    // Find the best counter that is a valid choice for the current strategy
-                                    for (const counterUnit of rankedCounters) {
-                                        const strategyUnits = {
-                                            rush: ['rifle', 'buggy'],
-                                            heavy: ['tank', 'missile'],
-                                            balanced: ['rifle', 'missile', 'tank']
-                                        };
-                                        if (strategyUnits[aiState.strategy].includes(counterUnit)) {
-                                            aiState.buildTarget = counterUnit;
-                                            break;
-                                        }
+                                if (harvesters.length >= 1) {
+                                    const roll = Math.random();
+                                    // 40% chance to be smart and counter, 60% chance to be aggressive/random
+                                    if (roll < 0.4 && enemyUnits.length > 0) {
+                                        aiState.buildTarget = getBestCounter(enemyUnits);
+                                    } else {
+                                        const combatUnits = ['rifle', 'missile', 'buggy', 'tank', 'orca'];
+                                        aiState.buildTarget = combatUnits[Math.floor(Math.random() * combatUnits.length)];
                                     }
                                 }
-
-                                // Fallback to a random unit from the strategy if no counter is needed or possible
-                                if (!aiState.buildTarget) {
-                                    const strategyUnits = {
-                                        rush: ['rifle', 'buggy'],
-                                        heavy: ['tank', 'missile'],
-                                        balanced: ['rifle', 'missile', 'tank']
-                                    };
-                                    const choices = strategyUnits[aiState.strategy];
-                                    aiState.buildTarget = choices[Math.floor(Math.random() * choices.length)];
-                                }
                             }
-
-                            // Step 2: Check if the build target can be afforded
+                            
+                            // Execute Build
                             if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) {
                                 buyUnit(aiState.buildTarget, aiPlayerId);
-                                aiState.buildTarget = null; // Clear the target after building
+                                aiState.buildTarget = null;
                             }
-                            // If it can't be afforded, the AI will implicitly save money by doing nothing.
-                        }
 
-                        // Offensive & Capture logic (only if base is not under attack)
-                        if (!baseIsAttacked) {
-                            const combatUnits = units.filter(u => u.owner === aiPlayerId && !u.harvest);
-                            const idleCombatUnits = combatUnits.filter(u => u.state === 'idle');
+                            // 4. Unit Command (Split duties: Platforms vs Attack)
+                            const fighters = myUnits.filter(u => !u.harvest);
+                            const platforms = [];
+                            for(let r=0; r<CONFIG.gridRows; r++) for(let c=0; c<CONFIG.gridCols; c++) if (GRID[r][c] === 3) platforms.push({x:c, y:r});
+                            const claimedUnits = new Set();
 
-                            // Coordinated Attack Logic
-                            const ATTACK_GROUP_SIZE = 4;
-                            if (combatUnits.length >= ATTACK_GROUP_SIZE) {
-                                const enemyBaseCoords = baseCoordinates[aiPlayerId * -1];
-                                combatUnits.forEach(u => {
-                                    // Make sure they aren't already defending or capturing
-                                    if (u.state === 'idle') {
-                                        u.setPath(enemyBaseCoords.x, enemyBaseCoords.y);
+                            // A. Fill Platforms (1 unit per platform)
+                            platforms.forEach(p => {
+                                let closest = null, minD = Infinity;
+                                fighters.forEach(u => {
+                                    if (!claimedUnits.has(u)) {
+                                        const d = Math.hypot(u.x - p.x, u.y - p.y);
+                                        if (d < minD) { minD = d; closest = u; }
                                     }
                                 });
-                            } else {
-                                // Staging Logic: Gather units near base before attacking
-                                const stagingY = aiPlayerId === 1 ? baseCoordinates[aiPlayerId].y - 3 : baseCoordinates[aiPlayerId].y + 3;
-                                idleCombatUnits.forEach((u, index) => {
-                                    const stagingX = Math.floor(CONFIG.gridCols / 2) + (index % 2 === 0 ? -1 : 1) * (Math.floor(index/2) + 1);
-                                    if (Math.hypot(u.x - stagingX, u.y - stagingY) > 1) {
-                                        u.setPath(stagingX, stagingY);
-                                    }
-                                });
-                            }
+                                if (closest) {
+                                    claimedUnits.add(closest);
+                                    if (minD > 0.5) closest.setPath(p.x, p.y);
+                                }
+                            });
 
-                            // Platform Capture (takes precedence over staging, but not mass attack)
-                            const unoccupiedPlatform = findUnoccupiedMissilePlatform();
-                            if (unoccupiedPlatform && idleCombatUnits.length > 0 && combatUnits.length < ATTACK_GROUP_SIZE) {
-                                let closestUnit = null;
-                                let minDistance = Infinity;
-                                for (const unit of idleCombatUnits) {
-                                    const distance = Math.hypot(unit.x - unoccupiedPlatform.x, unit.y - unoccupiedPlatform.y);
-                                    if (distance < minDistance) {
-                                        minDistance = distance;
-                                        closestUnit = unit;
+                            // B. Attack (Everyone else) - SMART SEARCH AND DESTROY
+                            fighters.forEach(u => {
+                                if (!claimedUnits.has(u) && u.state === 'idle') {
+                                    // CRITICAL CHECK: Do not move if currently shooting!
+                                    // u.findTarget returns a valid target object if one is found AND is in range.
+                                    // If we have a target in range, let the unit fight.
+                                    const currentTarget = u.findTarget();
+                                    if (currentTarget) {
+                                        return; // Busy attacking, don't move
+                                    }
+
+                                    // Otherwise, find the NEAREST enemy unit or base
+                                    let nearest = null;
+                                    let minD = Infinity;
+                                    
+                                    // Check all enemy units
+                                    enemyUnits.forEach(e => {
+                                        const d = Math.hypot(u.x - e.x, u.y - e.y);
+                                        if (d < minD) { minD = d; nearest = e; }
+                                    });
+
+                                    // Compare with enemy base
+                                    const dBase = Math.hypot(u.x - enemyBaseCoord.x, u.y - enemyBaseCoord.y);
+                                    
+                                    if (dBase < minD || !nearest) {
+                                        // Base is closer or no units found
+                                        u.setPath(enemyBaseCoord.x, enemyBaseCoord.y);
+                                    } else {
+                                        // Enemy unit is closer, hunt it down
+                                        u.setPath(nearest.x, nearest.y);
                                     }
                                 }
-                                if (closestUnit) {
-                                    closestUnit.setPath(unoccupiedPlatform.x, unoccupiedPlatform.y);
-                                }
-                            }
+                            });
                         }
                     }
                 }
@@ -690,7 +703,8 @@ function loop(ts) {
                                     bases[baseKey] = Math.max(0, bases[baseKey] - p.dmg);
                                     updateHP();
                                 } else {
-                                    p.tar.takeDamage(p.dmg);
+                                    // Pass attacker to takeDamage
+                                    p.tar.takeDamage(p.dmg, p.attacker);
                                 }
                             }
                             SFX.explode(); addParticles(p.x, p.y, 6, 'orange');
@@ -713,7 +727,8 @@ function loop(ts) {
                                 bases[baseKey] = Math.max(0, bases[baseKey] - p.dmg);
                                 updateHP();
                             } else {
-                                p.tar.takeDamage(p.dmg);
+                                // Pass attacker to takeDamage
+                                p.tar.takeDamage(p.dmg, p.attacker);
                             }
                             particles.push({ x: p.x, y: p.y, l: 15, c: '#fa0' });
                             return false;
@@ -725,8 +740,6 @@ function loop(ts) {
                         return true;
                     }
 
-                    // Fallback for old visual bullets if any, though they should be gone
-                    if (p.l) { p.l--; return p.l > 0; }
                     return false;
                 });
 
@@ -828,31 +841,6 @@ function draw() {
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(dx, dy, r+5, 0, Math.PI*2); ctx.stroke();
             if (u.path && u.path.length > 0) {
                 drawUnitPath(u, ts);
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
-                ctx.lineWidth = 3;
-                ctx.beginPath();
-                ctx.moveTo(u.vx * ts + ts / 2, u.vy * ts + ts / 2);
-                u.path.forEach(p => ctx.lineTo(p.x * ts + ts / 2, p.y * ts + ts / 2));
-                ctx.stroke();
-
-                // Draw arrow head
-                const lastPoint = u.path[u.path.length-1];
-                const secondLastPoint = u.path.length > 1 ? u.path[u.path.length - 2] : {x: u.vx, y: u.vy};
-                const angle = Math.atan2(lastPoint.y - secondLastPoint.y, lastPoint.x - secondLastPoint.x);
-                const arrowX = lastPoint.x * ts + ts / 2;
-                const arrowY = lastPoint.y * ts + ts / 2;
-
-                ctx.save();
-                ctx.translate(arrowX, arrowY);
-                ctx.rotate(angle);
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(-10, -5);
-                ctx.lineTo(-10, 5);
-                ctx.closePath();
-                ctx.fill();
-                ctx.restore();
             }
         }
         ctx.fillStyle = u.owner===1 ? CONFIG.colors.p : CONFIG.colors.e;
@@ -1001,12 +989,6 @@ function startGame() {
     money = CONFIG.startMoney;
     enemyMoney = CONFIG.startMoney;
     units=[]; projectiles=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null;
-
-    // AI Strategy Initialization
-    const strategies = ['rush', 'heavy', 'balanced'];
-    aiState.strategy = strategies[Math.floor(Math.random() * strategies.length)];
-    aiState.buildTarget = null;
-
     setupUIForSide(); updateHP(); SFX.init(); gameActive = true;
 }
 function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive = true; setupUIForSide(); SFX.init(); }
