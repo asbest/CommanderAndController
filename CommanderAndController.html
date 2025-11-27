@@ -816,8 +816,7 @@ function init3D() {
     // Camera
     const aspect = window.innerWidth / window.innerHeight;
     camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
-    camera.position.set(CONFIG.gridCols * TILE_SIZE_3D / 2, 40, CONFIG.gridRows * TILE_SIZE_3D * 0.8);
-    camera.lookAt(CONFIG.gridCols * TILE_SIZE_3D / 2, 0, CONFIG.gridRows * TILE_SIZE_3D / 2);
+    updateCameraPosition();
 
     // Renderer
     renderer = new THREE.WebGLRenderer({ canvas: canvas3D, antialias: true });
@@ -1307,10 +1306,29 @@ function buyUnit(k, p) {
     }
 }
 
+function updateCameraPosition() {
+    if (!camera) return;
+    const aspect = window.innerWidth / window.innerHeight;
+    const gridW = CONFIG.gridCols * TILE_SIZE_3D;
+    const gridH = CONFIG.gridRows * TILE_SIZE_3D;
+
+    // Calculate distance to fit both width and height
+    // vFOV = 60 degrees. tan(30) = 0.57735
+    const tanFOV = Math.tan(Math.PI / 6);
+    const distH = gridH / 2 / tanFOV;
+    const distW = gridW / 2 / tanFOV / aspect;
+
+    const dist = Math.max(distH, distW) * 1.1; // 1.1x padding
+
+    camera.position.set(gridW / 2, dist, gridH / 2);
+    camera.lookAt(gridW / 2, 0, gridH / 2);
+}
+
 window.addEventListener('resize', () => {
     if (camera) {
         camera.aspect = window.innerWidth / window.innerHeight;
         camera.updateProjectionMatrix();
+        updateCameraPosition();
         renderer.setSize(window.innerWidth, window.innerHeight);
         hudCanvas.width = window.innerWidth;
         hudCanvas.height = window.innerHeight;
