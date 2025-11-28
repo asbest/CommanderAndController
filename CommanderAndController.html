@@ -725,8 +725,9 @@ function drawHUD() {
 }
 
 const MODEL_URLS = {
-    rifle: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Soldier.glb',
+    rifle: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMan/glTF-Binary/CesiumMan.glb',
     tank: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb',
+    turret: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Lantern/glTF-Binary/Lantern.glb',
     buggy: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Buggy/glTF-Binary/Buggy.glb',
     harv: 'https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb',
     orca: 'https://raw.githubusercontent.com/mrdoob/three.js/master/examples/models/gltf/Parrot.glb',
@@ -966,40 +967,87 @@ function update3D() {
     }
 }
 
+function fitToTile(mesh, size, key) {
+    const box = new THREE.Box3().setFromObject(mesh);
+    const sizeVec = new THREE.Vector3();
+    box.getSize(sizeVec);
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+
+    const maxDim = Math.max(sizeVec.x, sizeVec.z, sizeVec.y || 1);
+    if (maxDim === 0) return;
+
+    let scale = size / maxDim;
+
+    if(key === 'rifle') scale *= 2.5;
+    if(key === 'tank_body') { scale *= 1.0; mesh.rotation.y = Math.PI; }
+    if(key === 'turret') { scale *= 1.5; }
+    if(key === 'buggy') scale *= 2.5;
+    if(key === 'missile') { scale *= 1.2; mesh.rotation.y = Math.PI; }
+    if(key === 'harv') { scale *= 1.2; mesh.rotation.y = Math.PI; }
+
+    mesh.scale.set(scale, scale, scale);
+    mesh.position.x = -center.x * scale;
+    mesh.position.z = -center.z * scale;
+    mesh.position.y = -box.min.y * scale;
+}
+
 function createUnitMesh(key, color) {
-    if (MODELS[key]) {
-        const group = new THREE.Group();
-        const model = MODELS[key].clone();
-
-        const box = new THREE.Box3().setFromObject(model);
-        const sizeVec = new THREE.Vector3();
-        box.getSize(sizeVec);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-
-        const maxDim = Math.max(sizeVec.x, sizeVec.z, sizeVec.y || 1);
-        let scale = (TILE_SIZE_3D * 0.6) / maxDim;
-
-        // Tuning
-        if(key === 'rifle') scale *= 2.5;
-        if(key === 'tank') { scale *= 1.2; model.rotation.y = Math.PI; }
-        if(key === 'missile') { scale *= 1.5; model.rotation.y = Math.PI; }
-        if(key === 'harv') { scale *= 1.2; model.rotation.y = Math.PI; }
-        if(key === 'orca') { scale *= 1.5; }
-
-        model.scale.set(scale, scale, scale);
-
-        model.position.x = -center.x * scale;
-        model.position.z = -center.z * scale;
-        model.position.y = -box.min.y * scale;
-
-        group.add(model);
-
+    const group = new THREE.Group();
+    const addRing = () => {
         const ring = new THREE.Mesh(new THREE.RingGeometry(3, 3.5, 32), new THREE.MeshBasicMaterial({ color: color, side: THREE.DoubleSide, transparent: true, opacity: 0.8 }));
         ring.rotation.x = -Math.PI / 2;
         ring.position.y = 0.2;
         group.add(ring);
+    };
 
+    if (key === 'tank' && MODELS['tank'] && MODELS['turret']) {
+         const body = MODELS['tank'].clone();
+         fitToTile(body, TILE_SIZE_3D * 0.8, 'tank_body');
+         group.add(body);
+
+         const turretGroup = new THREE.Group();
+         turretGroup.name = 'turret';
+         turretGroup.position.set(0, 3, -1);
+
+         const lantern = MODELS['turret'].clone();
+         fitToTile(lantern, TILE_SIZE_3D * 0.35, 'turret');
+         lantern.position.set(0, 0, 0);
+         turretGroup.add(lantern);
+
+         const barrelGroup = new THREE.Group();
+         barrelGroup.name = 'barrel';
+         barrelGroup.position.set(0, 1.5, 0);
+
+         const barrelGeo = new THREE.CylinderGeometry(0.25, 0.25, 4, 8);
+         barrelGeo.rotateX(-Math.PI/2);
+         barrelGeo.translate(0, 0, 2);
+         const barrelMesh = new THREE.Mesh(barrelGeo, new THREE.MeshLambertMaterial({color: 0x333333}));
+         barrelGroup.add(barrelMesh);
+
+         const flash = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1, 8), new THREE.MeshBasicMaterial({color: 0xffff00}));
+         flash.rotation.x = -Math.PI/2;
+         flash.position.z = 4.2;
+         flash.visible = false;
+         flash.name = 'flash';
+         barrelGroup.add(flash);
+
+         turretGroup.add(barrelGroup);
+         group.add(turretGroup);
+
+         addRing();
+         return group;
+    }
+
+    if (MODELS[key]) {
+        const model = MODELS[key].clone();
+        let size = TILE_SIZE_3D * 0.6;
+        if (key === 'orca') size = TILE_SIZE_3D * 0.8;
+
+        fitToTile(model, size, key);
+
+        group.add(model);
+        addRing();
         return group;
     }
     return createUnitMeshFallback(key, color);
