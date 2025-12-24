@@ -548,7 +548,7 @@ function findNearestTile(x, y, typeId) {
 
 function isBaseUnderAttack(playerId) {
     const coord = baseCoordinates[playerId];
-    return units.some(u => u.owner !== playerId && Math.hypot(coord.x - u.x, coord.y - u.y) <= 6);
+    return units.some(u => u.owner !== playerId && Math.hypot(coord.x - u.x, coord.y - u.y) <= 10);
 }
 
 function getBestCounter(enemyUnits) {
@@ -574,8 +574,8 @@ function loop(ts) {
                         const myUnits = units.filter(u => u.owner === aiPlayerId), enemyUnits = units.filter(u => u.owner !== aiPlayerId);
                         const baseCoord = baseCoordinates[aiPlayerId], enemyBaseCoord = baseCoordinates[aiPlayerId * -1];
                         if (isBaseUnderAttack(aiPlayerId)) {
-                            const threat = enemyUnits.find(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8) || {x:baseCoord.x, y:baseCoord.y};
-                            myUnits.forEach(u => { if (!u.harvest && u.state !== 'move') u.setPath(threat.x, threat.y); });
+                            const threat = enemyUnits.find(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 12) || {x:baseCoord.x, y:baseCoord.y};
+                            myUnits.forEach(u => { if (!u.harvest) u.setPath(threat.x, threat.y); });
                         } else {
                             const harvesters = myUnits.filter(u => u.harvest);
                             if (harvesters.length < 1 && aiFunds >= DB.harv.cost && (!aiState.buildTarget || aiState.buildTarget !== 'harv')) aiState.buildTarget = 'harv';
@@ -631,7 +631,9 @@ function loop(ts) {
                     if (p.t === 'nuke') {
                         const d = Math.hypot(p.tx-p.x, p.ty-p.y);
                         if (d < p.s) { SFX.nuke(); mushroomCloud=new MushroomCloud(p.tx, p.ty); if(p.o===1) bases.e /= 2; else bases.p /= 2; updateHP(); return false; }
-                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s; if(Math.random()>0.1) addParticles(p.x, p.y, 1, 'flash'); return true;
+                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s;
+                        addParticles(p.x, p.y, 2, 'smoke'); addParticles(p.x, p.y, 1, 'flash');
+                        return true;
                     }
                     const targetAlive = p.tar && (p.tar.isBase || units.includes(p.tar));
                     if (p.t === 'missile') {
@@ -927,11 +929,15 @@ function update3D() {
         const z = p.y * TILE_SIZE_3D + TILE_SIZE_3D/2;
         item.g.position.set(x, 4, z);
         item.g.rotation.y = -p.angle + Math.PI/2;
-        item.g.scale.set(1.5, 1.5, 1.5);
 
-        if (p.t === 'missile') item.m.visible = true;
-        else if (p.t === 'bullet') { item.b.visible = true; item.b.material = (p.c === '#0f0' || p.c === '#00ff00' || p.c === '#44ff44') ? MATS.bulletP : MATS.bulletE; }
-        else if (p.t === 'nuke') item.n.visible = true;
+        if (p.t === 'nuke') {
+            item.g.scale.set(4.0, 4.0, 4.0);
+            item.n.visible = true;
+        } else {
+            item.g.scale.set(1.5, 1.5, 1.5);
+            if (p.t === 'missile') item.m.visible = true;
+            else if (p.t === 'bullet') { item.b.visible = true; item.b.material = (p.c === '#0f0' || p.c === '#00ff00' || p.c === '#44ff44') ? MATS.bulletP : MATS.bulletE; }
+        }
     });
 
     // Debris
