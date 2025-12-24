@@ -264,6 +264,8 @@ let peer = null, conn = null;
 // THREE.JS GLOBALS
 let scene, camera, renderer, raycaster, mouse, groundPlane;
 let unitMeshes = new Map(); // Map unit object to mesh
+let selectionRing = null; // 3D Selection Ring
+let moveMarker = null; // 3D Movement Marker
 let projectileMeshes = [];
 let terrainGroup = null;
 const TILE_SIZE_3D = 10;
@@ -271,7 +273,7 @@ const POOL = { proj: [], part: [] };
 const GEOM = {};
 const MATS = {};
 
-const aiState = { strategy: 'hold', buildTarget: null };
+const aiState = { strategy: 'hold', buildTarget: null, attacking: false };
 
 // --- AUDIO ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -589,13 +591,27 @@ function loop(ts) {
                                 fighters.forEach(u => { if (!claimed.has(u)) { const d = Math.hypot(u.x - p.x, u.y - p.y); if (d < minD) { minD = d; closest = u; } } });
                                 if (closest) { claimed.add(closest); if (minD > 0.5) closest.setPath(p.x, p.y); }
                             });
-                            fighters.forEach(u => {
-                                if (!claimed.has(u) && u.state === 'idle') {
-                                    if (u.findTarget()) return;
+                            // Squad Logic
+                            const idleFighters = fighters.filter(u => !claimed.has(u) && u.state === 'idle');
+                            if (idleFighters.length >= 6) aiState.attacking = true;
+                            if (idleFighters.length < 2) aiState.attacking = false;
+
+                            idleFighters.forEach(u => {
+                                if (u.findTarget()) return;
+
+                                if (aiState.attacking) {
                                     let nearest=null, minD=Infinity;
                                     enemyUnits.forEach(e => { const d = Math.hypot(u.x - e.x, u.y - e.y); if (d < minD) { minD = d; nearest = e; } });
                                     const dBase = Math.hypot(u.x - enemyBaseCoord.x, u.y - enemyBaseCoord.y);
+                                    // Attack base or nearest enemy
                                     u.setPath((dBase < minD || !nearest) ? enemyBaseCoord.x : nearest.x, (dBase < minD || !nearest) ? enemyBaseCoord.y : nearest.y);
+                                } else {
+                                    // Rally near base
+                                    const rallyY = aiPlayerId === 1 ? baseCoord.y - 3 : baseCoord.y + 3;
+                                    // Add some random spread to avoid stacking
+                                    if (Math.hypot(u.x - baseCoord.x, u.y - rallyY) > 2) {
+                                        u.setPath(baseCoord.x + (Math.random()-0.5)*4, rallyY + (Math.random()-0.5)*2);
+                                    }
                                 }
                             });
                         }
@@ -647,6 +663,13 @@ function loop(ts) {
             const myFunds = myPlayerId === 1 ? money : enemyMoney;
             document.getElementById('money-display').innerText = Math.floor(myFunds);
             document.querySelectorAll('.card').forEach(b => { if (myFunds < b.dataset.cost) b.classList.add('disabled'); else b.classList.remove('disabled'); });
+
+            // Animate Move Marker
+            if (moveMarker && moveMarker.visible) {
+                moveMarker.scale.multiplyScalar(0.9);
+                moveMarker.material.opacity *= 0.9;
+                if (moveMarker.scale.x < 0.1) moveMarker.visible = false;
+            }
         }
         update3D();
         renderer.render(scene, camera);
@@ -693,8 +716,6 @@ function drawHUD() {
         const top = project(x, 4, z); // Above unit
 
         if (selectedUnit === u) {
-            hudCtx.strokeStyle = '#fff'; hudCtx.lineWidth = 1;
-            hudCtx.beginPath(); hudCtx.arc(pos.x, pos.y, 20, 0, Math.PI*2); hudCtx.stroke();
             if (u.path.length) {
                 // Draw path in 2D overlay? Or 3D?
                 // Let's do 2D overlay for now
@@ -807,6 +828,18 @@ function update3D() {
     }
 
     // 2. Add/Update units
+    if (selectionRing) {
+        if (selectedUnit && units.includes(selectedUnit)) {
+            selectionRing.visible = true;
+            const x = selectedUnit.vx * TILE_SIZE_3D + TILE_SIZE_3D/2;
+            const z = selectedUnit.vy * TILE_SIZE_3D + TILE_SIZE_3D/2;
+            selectionRing.position.set(x, 1, z); // Slightly above ground
+            selectionRing.scale.set(1 + Math.sin(Date.now() / 200)*0.1, 1 + Math.sin(Date.now() / 200)*0.1, 1); // Pulse
+        } else {
+            selectionRing.visible = false;
+        }
+    }
+
     units.forEach(u => {
         let mesh = unitMeshes.get(u);
         if(!mesh) {
@@ -1416,7 +1449,16 @@ function handleInput(e, _, nx, ny, netPlayer) {
         if(clicked && clicked.owner === p) { selectedUnit = clicked; return; }
         if(selectedUnit && selectedUnit.owner === p) {
             if (clicked && clicked.owner !== p) selectedUnit.setPath(nx, ny);
-            else if ((GRID[ny][nx] !== 1 || selectedUnit.type === 'air')) selectedUnit.setPath(nx, ny);
+            else if ((GRID[ny][nx] !== 1 || selectedUnit.type === 'air')) {
+                selectedUnit.setPath(nx, ny);
+                // Show movement marker
+                if (moveMarker) {
+                    moveMarker.position.set(nx * TILE_SIZE_3D + TILE_SIZE_3D/2, 1, ny * TILE_SIZE_3D + TILE_SIZE_3D/2);
+                    moveMarker.scale.set(1, 1, 1);
+                    moveMarker.material.opacity = 0.8;
+                    moveMarker.visible = true;
+                }
+            }
         }
     }
 }
@@ -1469,6 +1511,22 @@ function init3D() {
 
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
+
+    // Selection Ring (Initially invisible)
+    const selGeo = new THREE.TorusGeometry(3.5, 0.2, 8, 32);
+    const selMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8 });
+    selectionRing = new THREE.Mesh(selGeo, selMat);
+    selectionRing.rotation.x = Math.PI / 2;
+    selectionRing.visible = false;
+    scene.add(selectionRing);
+
+    // Movement Marker
+    const moveGeo = new THREE.RingGeometry(2, 2.5, 32);
+    const moveMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.8, side: THREE.DoubleSide });
+    moveMarker = new THREE.Mesh(moveGeo, moveMat);
+    moveMarker.rotation.x = Math.PI / 2;
+    moveMarker.visible = false;
+    scene.add(moveMarker);
 
     // Input
     window.addEventListener('resize', onWindowResize, false);
