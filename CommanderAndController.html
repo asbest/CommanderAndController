@@ -591,12 +591,30 @@ function loop(ts) {
                                 fighters.forEach(u => { if (!claimed.has(u)) { const d = Math.hypot(u.x - p.x, u.y - p.y); if (d < minD) { minD = d; closest = u; } } });
                                 if (closest) { claimed.add(closest); if (minD > 0.5) closest.setPath(p.x, p.y); }
                             });
-                            // Squad Logic
-                            const idleFighters = fighters.filter(u => !claimed.has(u) && u.state === 'idle');
-                            if (idleFighters.length >= 6) aiState.attacking = true;
-                            if (idleFighters.length < 2) aiState.attacking = false;
 
-                            idleFighters.forEach(u => {
+                            // Identify Base Defenders (Home Guard)
+                            const unassigned = fighters.filter(u => !claimed.has(u));
+                            unassigned.sort((a, b) => Math.hypot(a.x - baseCoord.x, a.y - baseCoord.y) - Math.hypot(b.x - baseCoord.x, b.y - baseCoord.y));
+
+                            const MIN_DEFENDERS = 3;
+                            const defenders = unassigned.slice(0, MIN_DEFENDERS);
+                            const squad = unassigned.slice(MIN_DEFENDERS);
+
+                            defenders.forEach(u => {
+                                if (!u.findTarget()) {
+                                    // Guard logic: stay close to base
+                                    if (Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) > 4) {
+                                        u.setPath(baseCoord.x + (Math.random()-0.5)*2, baseCoord.y + (aiPlayerId===1?-2:2));
+                                    }
+                                }
+                            });
+
+                            // Squad Logic
+                            const idleSquad = squad.filter(u => u.state === 'idle');
+                            if (idleSquad.length >= 4) aiState.attacking = true; // Attack with smaller squad since we have defenders
+                            if (idleSquad.length < 2) aiState.attacking = false;
+
+                            idleSquad.forEach(u => {
                                 if (u.findTarget()) return;
 
                                 if (aiState.attacking) {
@@ -931,7 +949,7 @@ function update3D() {
         item.g.rotation.y = -p.angle + Math.PI/2;
 
         if (p.t === 'nuke') {
-            item.g.scale.set(4.0, 4.0, 4.0);
+            item.g.scale.set(5.0, 5.0, 5.0);
             item.n.visible = true;
         } else {
             item.g.scale.set(1.5, 1.5, 1.5);
