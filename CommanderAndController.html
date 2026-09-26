@@ -594,9 +594,21 @@ function isBaseUnderAttack(playerId) {
 }
 
 function getBestCounter(enemyUnits) {
-    if (!enemyUnits || enemyUnits.length === 0) return 'rifle';
+    if (!enemyUnits || enemyUnits.length === 0) return ['rifle', 'buggy', 'missile'][Math.floor(Math.random()*3)];
+
+    // Check key units on pads or active battlefield
+    const keys = enemyUnits.map(u => u.key);
+
+    // Specific hard counters
+    if (keys.includes('orca')) return 'missile';
+    if (keys.includes('tank')) return 'orca';
+    if (keys.includes('buggy')) return 'tank';
+    if (keys.includes('missile')) return 'buggy';
+    if (keys.includes('rifle')) return 'buggy';
+
+    // Type fallbacks
     const counts = {}; enemyUnits.forEach(u => counts[u.type] = (counts[u.type] || 0) + 1);
-    const dom = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    const dom = Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b, 'infantry');
     if (dom === 'infantry') return 'buggy';
     if (dom === 'air') return 'missile';
     if (dom === 'vehicle') return 'orca';
@@ -611,25 +623,51 @@ function loop(ts) {
                 if (ts % 1000 < 20) { let i1=5, i2=5; units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=6; else i2+=6; } }); money+=i1; enemyMoney+=i2; }
                 if (!isMultiplayer) {
                     aiTick++;
-                    if (aiTick % 40 === 0) {
+                    if (aiTick % 20 === 0) { // Faster AI decision cycle (every 20 ticks)
                         const aiFunds = aiPlayerId === 1 ? money : enemyMoney;
                         const myUnits = units.filter(u => u.owner === aiPlayerId), enemyUnits = units.filter(u => u.owner !== aiPlayerId);
                         const baseCoord = baseCoordinates[aiPlayerId], enemyBaseCoord = baseCoordinates[aiPlayerId * -1];
+
                         if (isBaseUnderAttack(aiPlayerId)) {
                             const threat = enemyUnits.find(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8) || {x:baseCoord.x, y:baseCoord.y};
                             myUnits.forEach(u => { if (!u.harvest && u.state !== 'move') u.setPath(threat.x, threat.y); });
                         } else {
+                            // Harvester priority
                             const harvesters = myUnits.filter(u => u.harvest);
-                            if (harvesters.length < 1 && aiFunds >= DB.harv.cost && (!aiState.buildTarget || aiState.buildTarget !== 'harv')) aiState.buildTarget = 'harv';
-                            if (!aiState.buildTarget) {
-                                if (harvesters.length >= 1) aiState.buildTarget = (Math.random()<0.4 && enemyUnits.length>0) ? getBestCounter(enemyUnits) : ['rifle','missile','buggy','tank','orca'][Math.floor(Math.random()*5)];
+                            if (harvesters.length < 1 && (!aiState.buildTarget || aiState.buildTarget !== 'harv')) {
+                                aiState.buildTarget = 'harv';
                             }
-                            if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) { buyUnit(aiState.buildTarget, aiPlayerId); aiState.buildTarget = null; }
+
+                            // Dynamic Counter-Build Target Selection
+                            if (!aiState.buildTarget) {
+                                // Analyze pad threats first
+                                const padEnemies = enemyUnits.filter(u => controlPads.some(p => Math.round(u.x) === p.x && Math.round(u.y) === p.y));
+                                if (padEnemies.length > 0) {
+                                    aiState.buildTarget = getBestCounter(padEnemies);
+                                } else if (enemyUnits.length > 0) {
+                                    aiState.buildTarget = getBestCounter(enemyUnits);
+                                } else {
+                                    aiState.buildTarget = ['rifle', 'buggy', 'missile', 'tank', 'orca'][Math.floor(Math.random()*5)];
+                                }
+                            }
+
+                            // Execute Buy
+                            if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) {
+                                buyUnit(aiState.buildTarget, aiPlayerId);
+                                aiState.buildTarget = null;
+                            }
+
+                            // Tactical Movement & Pad Control
                             const fighters = myUnits.filter(u => !u.harvest);
                             const claimedFighters = new Set();
 
-                            // Assign fighters to capture/defend control pads (C&C Rivals priority)
-                            controlPads.forEach(pad => {
+                            // High priority: Send fighters to unowned/enemy-owned pads first
+                            const sortedPads = [...controlPads].sort((a, b) => {
+                                const score = p => (p.owner === aiPlayerId ? 2 : (p.owner === 0 ? 1 : 0));
+                                return score(a) - score(b);
+                            });
+
+                            sortedPads.forEach(pad => {
                                 let closest = null, minD = Infinity;
                                 fighters.forEach(u => {
                                     if (!claimedFighters.has(u)) {
@@ -645,7 +683,7 @@ function loop(ts) {
                                 }
                             });
 
-                            // Unassigned fighters engage nearby enemy forces or push towards enemy base
+                            // Reserve fighters engage nearest enemy or push base
                             fighters.forEach(u => {
                                 if (!claimedFighters.has(u) && u.state === 'idle') {
                                     if (u.findTarget()) return;
