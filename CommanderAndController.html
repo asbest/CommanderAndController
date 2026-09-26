@@ -468,22 +468,30 @@ function createTerrain() {
     if (terrainGroup) scene.remove(terrainGroup);
     terrainGroup = new THREE.Group();
 
-    // Ground
+    // High Detail Metallic Ground Base
     const geometry = new THREE.PlaneGeometry(CONFIG.gridCols * TILE_SIZE_3D, CONFIG.gridRows * TILE_SIZE_3D);
-    const material = new THREE.MeshLambertMaterial({ color: 0x222222 });
-    groundPlane = new THREE.Mesh(geometry, material); // Save to global for raycasting
+    const material = new THREE.MeshStandardMaterial({
+        color: 0x181c22,
+        roughness: 0.6,
+        metalness: 0.4
+    });
+    groundPlane = new THREE.Mesh(geometry, material);
     groundPlane.rotation.x = -Math.PI / 2;
     groundPlane.position.set((CONFIG.gridCols * TILE_SIZE_3D) / 2, -0.1, (CONFIG.gridRows * TILE_SIZE_3D) / 2);
     groundPlane.receiveShadow = true;
     terrainGroup.add(groundPlane);
 
-    // Grid Lines
-    const gridHelper = new THREE.GridHelper(Math.max(CONFIG.gridCols, CONFIG.gridRows) * TILE_SIZE_3D, Math.max(CONFIG.gridCols, CONFIG.gridRows), 0x004400, 0x002200);
-    gridHelper.position.set((CONFIG.gridCols * TILE_SIZE_3D) / 2, 0.01, (CONFIG.gridRows * TILE_SIZE_3D) / 2);
-    // Align grid helper to match tile size
-    gridHelper.scale.set(CONFIG.gridCols/Math.max(CONFIG.gridCols, CONFIG.gridRows), 1, CONFIG.gridRows/Math.max(CONFIG.gridCols, CONFIG.gridRows));
-    // Re-create grid helper manually to be exact
-    const gridMat = new THREE.LineBasicMaterial({ color: 0x006600, opacity: 0.5, transparent: true });
+    // Retaining Wall Border around Map
+    const mapW = CONFIG.gridCols * TILE_SIZE_3D, mapH = CONFIG.gridRows * TILE_SIZE_3D;
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x0c1015, roughness: 0.8, metalness: 0.2 });
+    const wallN = new THREE.Mesh(new THREE.BoxGeometry(mapW + 4, 3, 2), wallMat); wallN.position.set(mapW/2, 1.5, -1);
+    const wallS = new THREE.Mesh(new THREE.BoxGeometry(mapW + 4, 3, 2), wallMat); wallS.position.set(mapW/2, 1.5, mapH + 1);
+    const wallW = new THREE.Mesh(new THREE.BoxGeometry(2, 3, mapH), wallMat); wallW.position.set(-1, 1.5, mapH/2);
+    const wallE = new THREE.Mesh(new THREE.BoxGeometry(2, 3, mapH), wallMat); wallE.position.set(mapW + 1, 1.5, mapH/2);
+    terrainGroup.add(wallN, wallS, wallW, wallE);
+
+    // Grid Overlay Lines
+    const gridMat = new THREE.LineBasicMaterial({ color: 0x00ff88, opacity: 0.25, transparent: true });
     const gridGeo = new THREE.BufferGeometry();
     const vertices = [];
     for(let i=0; i<=CONFIG.gridCols; i++) {
@@ -504,29 +512,49 @@ function createTerrain() {
             const x = c * TILE_SIZE_3D + TILE_SIZE_3D / 2;
             const z = r * TILE_SIZE_3D + TILE_SIZE_3D / 2;
 
-            if (t === 1) { // Mountain
-                const geo = new THREE.ConeGeometry(TILE_SIZE_3D * 0.5, TILE_SIZE_3D * 0.8, 4);
-                const mat = new THREE.MeshLambertMaterial({ color: 0x333333, flatShading: true });
-                const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set(x, TILE_SIZE_3D * 0.4, z);
-                mesh.castShadow = true;
-                mesh.receiveShadow = true;
-                terrainGroup.add(mesh);
-            } else if (t === 2) { // Tiberium
-                // handled in update for glow? or static here. Static for now.
-                const count = 3 + Math.floor(Math.random()*3);
+            if (t === 1) { // Mountains (Realistic Rocky Crag)
+                const rockGroup = new THREE.Group();
+                const count = 3 + Math.floor(Math.random()*2);
+                const rockMat = new THREE.MeshStandardMaterial({ color: 0x2d3436, roughness: 0.9, metalness: 0.1, flatShading: true });
+                for (let i = 0; i < count; i++) {
+                    const radius = 2.5 + Math.random() * 2.5;
+                    const geo = new THREE.DodecahedronGeometry(radius, 1);
+                    const mesh = new THREE.Mesh(geo, rockMat);
+                    mesh.position.set((Math.random()-0.5)*3, radius*0.7, (Math.random()-0.5)*3);
+                    mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+                    mesh.scale.set(1 + Math.random()*0.4, 1.2 + Math.random()*0.8, 1 + Math.random()*0.4);
+                    mesh.castShadow = true; mesh.receiveShadow = true;
+                    rockGroup.add(mesh);
+                }
+                rockGroup.position.set(x, 0, z);
+                terrainGroup.add(rockGroup);
+            } else if (t === 2) { // Tiberium Fields (Glowing Crystals)
+                const tibGroup = new THREE.Group();
+                const count = 5 + Math.floor(Math.random()*3);
+                const tibMat = new THREE.MeshStandardMaterial({
+                    color: 0x00ff66,
+                    emissive: 0x00aa33,
+                    emissiveIntensity: 0.8,
+                    roughness: 0.2,
+                    metalness: 0.1
+                });
                 for(let i=0; i<count; i++) {
-                    const h = 2 + Math.random() * 4;
-                    const geo = new THREE.CylinderGeometry(0.5, 1, h, 5);
-                    const mat = new THREE.MeshLambertMaterial({ color: 0x00ff66, emissive: 0x004411 });
-                    const mesh = new THREE.Mesh(geo, mat);
+                    const h = 3 + Math.random() * 4;
+                    const geo = new THREE.CylinderGeometry(0.2, 0.8, h, 6);
+                    const mesh = new THREE.Mesh(geo, tibMat);
                     const ox = (Math.random()-0.5)*TILE_SIZE_3D*0.6;
                     const oz = (Math.random()-0.5)*TILE_SIZE_3D*0.6;
-                    mesh.position.set(x + ox, h/2, z + oz);
-                    mesh.rotation.x = (Math.random()-0.5)*0.5;
-                    mesh.rotation.z = (Math.random()-0.5)*0.5;
-                    terrainGroup.add(mesh);
+                    mesh.position.set(ox, h/2, oz);
+                    mesh.rotation.x = (Math.random()-0.5)*0.6;
+                    mesh.rotation.z = (Math.random()-0.5)*0.6;
+                    tibGroup.add(mesh);
                 }
+                const tibLight = new THREE.PointLight(0x00ff66, 0.8, 15);
+                tibLight.position.set(0, 3, 0);
+                tibGroup.add(tibLight);
+
+                tibGroup.position.set(x, 0, z);
+                terrainGroup.add(tibGroup);
             } else if (t === 3) { // Control Pad
                 const padGroup = new THREE.Group();
 
@@ -884,21 +912,23 @@ function initGeometries() {
     GEOM.mFire = new THREE.ConeGeometry(0.2, 0.8, 8); GEOM.mFire.rotateX(-Math.PI/2); GEOM.mFire.translate(0, 0, -1.2);
     GEOM.box = new THREE.BoxGeometry(1, 1, 1);
 
-    // Nuke Rocket Parts (Huge Rocket)
-    GEOM.nukeBody = new THREE.CylinderGeometry(1, 1, 5, 16); GEOM.nukeBody.rotateX(Math.PI/2);
-    GEOM.nukeNose = new THREE.ConeGeometry(1, 2, 16); GEOM.nukeNose.rotateX(Math.PI/2); GEOM.nukeNose.translate(0, 0, 3.5);
-    GEOM.nukeFin = new THREE.BoxGeometry(1, 2, 0.2);
-    GEOM.nukeEngine = new THREE.CylinderGeometry(0.4, 0.6, 0.8, 8); GEOM.nukeEngine.rotateX(Math.PI/2); GEOM.nukeEngine.translate(0, 0, -2.8);
-    GEOM.nukeTrail = new THREE.ConeGeometry(1.5, 6, 8); GEOM.nukeTrail.rotateX(Math.PI/2); GEOM.nukeTrail.translate(0, 0, -6);
+    // High-Detail ICBM Atomic Missile Geometry
+    GEOM.nukeStage1 = new THREE.CylinderGeometry(0.9, 1.0, 3.5, 20); GEOM.nukeStage1.rotateX(Math.PI/2);
+    GEOM.nukeStage2 = new THREE.CylinderGeometry(0.75, 0.88, 3.0, 20); GEOM.nukeStage2.rotateX(Math.PI/2); GEOM.nukeStage2.translate(0, 0, 3.0);
+    GEOM.nukeWarhead = new THREE.ConeGeometry(0.75, 2.2, 20); GEOM.nukeWarhead.rotateX(Math.PI/2); GEOM.nukeWarhead.translate(0, 0, 5.5);
+    GEOM.nukeFin = new THREE.BoxGeometry(0.15, 1.8, 1.2);
+    GEOM.nukeNozzle = new THREE.CylinderGeometry(0.5, 0.8, 1.2, 16); GEOM.nukeNozzle.rotateX(Math.PI/2); GEOM.nukeNozzle.translate(0, 0, -2.2);
+    GEOM.nukeExhaust = new THREE.ConeGeometry(1.2, 5.0, 16); GEOM.nukeExhaust.rotateX(Math.PI/2); GEOM.nukeExhaust.translate(0, 0, -5.2);
 
-    MATS.white = new THREE.MeshLambertMaterial({ color: 0xeeeeee });
-    MATS.red = new THREE.MeshLambertMaterial({ color: 0xff0000 });
+    MATS.white = new THREE.MeshStandardMaterial({ color: 0xf0f0f0, metalness: 0.8, roughness: 0.2 });
+    MATS.yellow = new THREE.MeshStandardMaterial({ color: 0xffcc00, metalness: 0.7, roughness: 0.3 });
+    MATS.red = new THREE.MeshStandardMaterial({ color: 0xdd1111, metalness: 0.6, roughness: 0.3 });
     MATS.skin = new THREE.MeshLambertMaterial({ color: 0xffccaa });
-    MATS.dark = new THREE.MeshLambertMaterial({ color: 0x333333 });
-    MATS.fire = new THREE.MeshBasicMaterial({ color: 0xffaa00 });
+    MATS.dark = new THREE.MeshStandardMaterial({ color: 0x222225, metalness: 0.9, roughness: 0.2 });
+    MATS.fire = new THREE.MeshBasicMaterial({ color: 0xff6600, transparent: true, opacity: 0.9 });
     MATS.bulletP = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     MATS.bulletE = new THREE.MeshBasicMaterial({ color: 0xff0000 });
-    MATS.nuke = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+    MATS.nuke = new THREE.MeshStandardMaterial({ color: 0xcccccc, metalness: 0.8 });
     MATS.grey = new THREE.MeshBasicMaterial({ color: 0x888888 });
 }
 
@@ -914,17 +944,27 @@ function getProjMesh() {
         m.add(f1, f2, new THREE.Mesh(GEOM.mFire, MATS.fire));
         const b = new THREE.Mesh(GEOM.bullet, MATS.bulletP);
 
-        // Huge Rocket Construction
+        // High Detail Multi-Stage ICBM Construction
         const n = new THREE.Group();
-        n.add(new THREE.Mesh(GEOM.nukeBody, MATS.white));
-        n.add(new THREE.Mesh(GEOM.nukeNose, MATS.red));
-        n.add(new THREE.Mesh(GEOM.nukeEngine, MATS.dark));
-        n.add(new THREE.Mesh(GEOM.nukeTrail, MATS.fire));
+        n.add(new THREE.Mesh(GEOM.nukeStage1, MATS.white));
+        n.add(new THREE.Mesh(GEOM.nukeStage2, MATS.white));
+        n.add(new THREE.Mesh(GEOM.nukeWarhead, MATS.red));
+        n.add(new THREE.Mesh(GEOM.nukeNozzle, MATS.dark));
+        n.add(new THREE.Mesh(GEOM.nukeExhaust, MATS.fire));
 
-        // Fins for Rocket
-        const fin1 = new THREE.Mesh(GEOM.nukeFin, MATS.red); fin1.position.set(0, 0, -2);
-        const fin2 = new THREE.Mesh(GEOM.nukeFin, MATS.red); fin2.position.set(0, 0, -2); fin2.rotation.z = Math.PI/2;
-        n.add(fin1, fin2);
+        // 4 Stabilizer Guidance Fins
+        for(let f=0; f<4; f++) {
+            const fin = new THREE.Mesh(GEOM.nukeFin, MATS.dark);
+            const angle = (f * Math.PI) / 2;
+            fin.position.set(Math.cos(angle)*1.0, Math.sin(angle)*1.0, -1.2);
+            fin.rotation.z = angle;
+            n.add(fin);
+        }
+
+        // Thruster Point Light
+        const nukeLight = new THREE.PointLight(0xff6600, 2.5, 25);
+        nukeLight.position.set(0, 0, -3.0);
+        n.add(nukeLight);
 
         g.add(m, b, n); scene.add(g);
         const newItem = { g, m, b, n };
@@ -1082,21 +1122,53 @@ function update3D() {
         m.position.set(p.x * TILE_SIZE_3D + TILE_SIZE_3D/2, 2, p.y * TILE_SIZE_3D + TILE_SIZE_3D/2);
     });
 
-    // Mushroom Cloud
+    // High-Detail 3D Mushroom Cloud Explosion Sequence
     if (mushroomCloud) {
         if (!window.nukeMesh) {
             window.nukeMesh = new THREE.Group();
-            const stem = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 10, 8), new THREE.MeshBasicMaterial({color: 0xffff00, transparent:true, opacity:0.8}));
-            stem.position.y = 5;
-            const cap = new THREE.Mesh(new THREE.SphereGeometry(6, 16, 16), new THREE.MeshBasicMaterial({color: 0xff4400, transparent:true, opacity:0.8}));
-            cap.position.y = 10;
-            window.nukeMesh.add(stem, cap);
+
+            // Rising Smoke Column Stem
+            const stemGeo = new THREE.CylinderGeometry(1.5, 3.5, 18, 16);
+            const stemMat = new THREE.MeshStandardMaterial({ color: 0xff5500, emissive: 0xff2200, emissiveIntensity: 0.8, roughness: 0.9, transparent: true, opacity: 0.9 });
+            const stem = new THREE.Mesh(stemGeo, stemMat);
+            stem.position.y = 9;
+
+            // Multi-Layer Fiery Blast Cap
+            const capInnerGeo = new THREE.SphereGeometry(7, 24, 24);
+            const capInnerMat = new THREE.MeshStandardMaterial({ color: 0xffffaa, emissive: 0xffaa00, emissiveIntensity: 1.2, roughness: 0.3, transparent: true, opacity: 0.9 });
+            const capInner = new THREE.Mesh(capInnerGeo, capInnerMat);
+            capInner.position.y = 18;
+
+            const capOuterGeo = new THREE.SphereGeometry(10, 24, 24);
+            const capOuterMat = new THREE.MeshStandardMaterial({ color: 0xff3300, emissive: 0xaa1100, emissiveIntensity: 0.6, roughness: 0.8, transparent: true, opacity: 0.7 });
+            const capOuter = new THREE.Mesh(capOuterGeo, capOuterMat);
+            capOuter.position.y = 18;
+
+            // Expanding Shockwave Ring
+            const ringGeo = new THREE.RingGeometry(2, 14, 32);
+            ringGeo.rotateX(-Math.PI/2);
+            const ringMat = new THREE.MeshBasicMaterial({ color: 0xffcc44, side: THREE.DoubleSide, transparent: true, opacity: 0.8 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.position.y = 0.5;
+
+            // Core Explosive Light
+            const nukeBlastLight = new THREE.PointLight(0xff6600, 8.0, 100);
+            nukeBlastLight.position.set(0, 12, 0);
+
+            window.nukeMesh.add(stem, capInner, capOuter, ring, nukeBlastLight);
             scene.add(window.nukeMesh);
         }
+
         window.nukeMesh.position.set(mushroomCloud.x * TILE_SIZE_3D + TILE_SIZE_3D/2, 0, mushroomCloud.y * TILE_SIZE_3D + TILE_SIZE_3D/2);
-        const scale = 1 - (mushroomCloud.life / mushroomCloud.maxLife);
-        window.nukeMesh.scale.set(scale, scale, scale);
-        window.nukeMesh.children.forEach(m => m.material.opacity = mushroomCloud.life / 60);
+        const progress = 1 - (mushroomCloud.life / mushroomCloud.maxLife);
+        const currentScale = 0.2 + progress * 2.8;
+        window.nukeMesh.scale.set(currentScale, currentScale, currentScale);
+
+        const fade = Math.min(1.0, mushroomCloud.life / 60);
+        window.nukeMesh.children.forEach(m => {
+            if (m.material) m.material.opacity = fade * 0.9;
+            if (m.isPointLight) m.intensity = fade * 8.0;
+        });
     } else if (window.nukeMesh) {
         scene.remove(window.nukeMesh);
         window.nukeMesh = null;
@@ -1582,38 +1654,40 @@ function init3D() {
     hudCtx = hudCanvas.getContext('2d');
 
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a0a);
-    scene.fog = new THREE.Fog(0x0a0a0a, 200, 600);
+    scene.background = new THREE.Color(0x05080c);
+    scene.fog = new THREE.FogExp2(0x0a1018, 0.0025);
 
     // Camera: Top-down perspective
     camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 1000);
-    // Adjusted camera for 3D view
     camera.position.set(0, 80, 50);
     camera.lookAt(0, 0, 0);
 
     renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
     renderer.setSize(window.innerWidth, window.innerHeight);
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+    // Enhanced Atmospheric Lighting
+    const ambientLight = new THREE.AmbientLight(0x6080a0, 0.6);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    dirLight.position.set(-20, 50, -20);
+    const dirLight = new THREE.DirectionalLight(0xfffaed, 1.2);
+    dirLight.position.set(-40, 90, -40);
     dirLight.castShadow = true;
     dirLight.shadow.mapSize.width = 2048;
     dirLight.shadow.mapSize.height = 2048;
     dirLight.shadow.camera.near = 0.5;
-    dirLight.shadow.camera.far = 200;
-    dirLight.shadow.camera.left = -100;
-    dirLight.shadow.camera.right = 100;
-    dirLight.shadow.camera.top = 100;
-    dirLight.shadow.camera.bottom = -100;
+    dirLight.shadow.camera.far = 300;
+    dirLight.shadow.camera.left = -120;
+    dirLight.shadow.camera.right = 120;
+    dirLight.shadow.camera.top = 120;
+    dirLight.shadow.camera.bottom = -120;
+    dirLight.shadow.bias = -0.0005;
     scene.add(dirLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xffffbb, 0x080820, 0.3);
+    const hemiLight = new THREE.HemisphereLight(0x00d2ff, 0x331100, 0.4);
     scene.add(hemiLight);
 
     raycaster = new THREE.Raycaster();
