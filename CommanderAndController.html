@@ -54,25 +54,25 @@
             text-shadow: 0 0 10px rgba(0,255,0,0.6); pointer-events: none; z-index: 20; font-family: monospace;
         }
 
-        /* --- BUILD MENU --- */
+        /* --- BUILD MENU (C&C RIVALS DECK STYLE) --- */
         .build-menu { 
-            background: rgba(5, 10, 5, 0.85); padding: 15px; display: flex; gap: 12px;
-            overflow-x: auto; justify-content: center; border-top: 1px solid rgba(0,255,0,0.2);
-            padding-bottom: 25px; backdrop-filter: blur(10px); 
+            background: linear-gradient(to top, rgba(5, 12, 5, 0.95), rgba(15, 25, 15, 0.85)); padding: 12px 20px; display: flex; gap: 14px;
+            overflow-x: auto; justify-content: center; border-top: 2px solid rgba(0,255,0,0.4);
+            padding-bottom: 20px; backdrop-filter: blur(12px); box-shadow: 0 -10px 30px rgba(0,0,0,0.8);
         }
         .card { 
-            width: 64px; height: 90px; background: linear-gradient(to bottom, #111, #050505);
-            border: 1px solid #333; border-radius: 6px; display: flex; flex-direction: column; 
-            align-items: center; justify-content: center; cursor: pointer; position: relative; 
-            transition: transform 0.1s, border-color 0.2s; 
-            box-shadow: inset 0 0 20px rgba(0,0,0,0.8);
+            width: 72px; height: 100px; background: linear-gradient(135deg, #1c261c, #0a120a);
+            border: 2px solid #2a442a; border-radius: 8px; display: flex; flex-direction: column;
+            align-items: center; justify-content: space-between; cursor: pointer; position: relative;
+            padding: 6px 4px; transition: transform 0.15s, border-color 0.2s, box-shadow 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.1);
         }
-        .card:active { transform: scale(0.96); }
-        .card.disabled { opacity: 0.4; filter: grayscale(1) brightness(0.5); cursor: default; border-color: #222; }
-        .card:not(.disabled):hover { border-color: #00ff00; box-shadow: 0 0 15px rgba(0,255,0,0.2), inset 0 0 10px rgba(0,255,0,0.1); }
-        .card-icon { font-size: 26px; margin-bottom: 6px; filter: drop-shadow(0 0 5px rgba(255,255,255,0.3)); }
-        .card-cost { color: #ffff00; font-weight: 700; font-size: 11px; position: absolute; top: 4px; right: 5px; font-family: monospace; text-shadow: 0 0 2px #000;}
-        .card-name { font-size: 9px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .card:active { transform: scale(0.94); }
+        .card.disabled { opacity: 0.45; filter: grayscale(0.8) brightness(0.6); cursor: default; border-color: #222; }
+        .card:not(.disabled):hover { border-color: #00ff66; transform: translateY(-3px); box-shadow: 0 0 20px rgba(0,255,100,0.4), inset 0 0 10px rgba(0,255,100,0.2); }
+        .card-icon { font-size: 30px; margin-top: 10px; filter: drop-shadow(0 0 6px rgba(0,255,100,0.3)); }
+        .card-cost { color: #ffff00; font-weight: 800; font-size: 12px; position: absolute; top: 4px; right: 6px; font-family: monospace; text-shadow: 0 0 4px #000;}
+        .card-name { font-size: 9.5px; color: #00ffcc; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 2px; }
 
         /* --- MODALS & MENUS --- */
         .modal-overlay { 
@@ -243,14 +243,14 @@
 <script>
 const CONFIG = { gridCols: 11, gridRows: 15, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 500, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
 
-// Updated Balance with Graphics Keys
+// Refined Balance aligned with C&C Rivals Rock-Paper-Scissors Dynamics
 const DB = {
-    rifle: { n:'Rifle', cost:50, hp:60, dmg:10, spd:0.0075, rng:1.5, cd:40, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.1, air: 0.1, building: 0.5 } },
-    missile: { n:'Launcher', cost:150, hp:80, dmg:40, spd:0.006, rng:3.5, cd:90, icon:'🚀', type:'vehicle', proj:'missile', scale: 0.35, mods: { infantry: 0.5, vehicle: 2.0, air: 4.0, building: 2.0 } },
-    buggy: { n:'Buggy', cost:200, hp:120, dmg:12, spd:0.0125, rng:2.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.0, vehicle: 0.3, air: 3.5, building: 0.5 } },
-    tank: { n:'Tank', cost:300, hp:350, dmg:60, spd:0.005, rng:2.0, cd:100, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.5, air: 0.0, building: 1.5 } },
-    orca: { n:'Orca', cost:400, hp:120, dmg:50, spd:0.01, rng:2.5, cd:120, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 2.5, missile: 0.1, air: 1.0, building: 2.0 } },
-    harv: { n:'Harvester', cost:250, hp:350, dmg:0, spd:0.0035, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
+    rifle: { n:'Rifle Squad', cost:50, hp:75, dmg:14, spd:0.0085, rng:1.5, cd:35, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.2, air: 0.1, building: 0.5, missile: 1.5 } },
+    missile: { n:'Missile Squad', cost:100, hp:85, dmg:45, spd:0.007, rng:3.5, cd:80, icon:'🚀', type:'infantry', proj:'missile', scale: 0.35, mods: { infantry: 0.4, vehicle: 2.2, air: 4.5, building: 2.0 } },
+    buggy: { n:'Cyber Buggy', cost:150, hp:140, dmg:16, spd:0.013, rng:2.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.5, vehicle: 0.3, air: 2.0, building: 0.5 } },
+    tank: { n:'Predator Tank', cost:250, hp:400, dmg:70, spd:0.0055, rng:2.0, cd:90, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.8, air: 0.0, building: 1.5 } },
+    orca: { n:'Orca Gunship', cost:350, hp:150, dmg:65, spd:0.011, rng:2.5, cd:100, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 3.0, missile: 0.1, air: 1.0, building: 2.5 } },
+    harv: { n:'Harvester', cost:200, hp:450, dmg:0, spd:0.004, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
 };
 
 const baseCoordinates = { '1': {x: Math.floor(CONFIG.gridCols/2), y: CONFIG.gridRows - 1}, '-1': {x: Math.floor(CONFIG.gridCols/2), y: 0} };
@@ -431,16 +431,31 @@ class MushroomCloud {
     }
 }
 
+let controlPads = [
+    { id: 0, x: 2, y: 7, owner: 0, p1Count: 0, p2Count: 0, mesh: null },
+    { id: 1, x: 5, y: 7, owner: 0, p1Count: 0, p2Count: 0, mesh: null },
+    { id: 2, x: 8, y: 7, owner: 0, p1Count: 0, p2Count: 0, mesh: null }
+];
+
 function generateMap() {
     GRID = [];
     const cols = CONFIG.gridCols, rows = CONFIG.gridRows, cx = Math.floor(cols/2), cy = Math.floor(rows/2);
     for (let r = 0; r < rows; r++) GRID.push(new Array(cols).fill(0));
-    GRID[0][cx] = 4; GRID[rows-1][cx] = 4;
-    [{r:4,c:2}, {r:4,c:cols-3}, {r:cy,c:cx}, {r:rows-5,c:2}, {r:rows-5,c:cols-3}].forEach(p => GRID[p.r][p.c] = 3);
-    [{r:1,c:1}, {r:1,c:cols-2}, {r:rows-2,c:1}, {r:rows-2,c:cols-2}, {r:cy,c:1}, {r:cy,c:cols-2}].forEach(p => GRID[p.r][p.c] = 2);
-    for (let r = 2; r < Math.floor(rows/2); r++) {
+    GRID[0][cx] = 4; GRID[rows-1][cx] = 4; // Bases
+
+    // Reset control pads state
+    controlPads.forEach(p => { p.owner = 0; p.p1Count = 0; p.p2Count = 0; p.mesh = null; });
+
+    // Set 3 Missile Control Pads at center zone (y=7, x=2, 5, 8)
+    controlPads.forEach(p => GRID[p.y][p.x] = 3);
+
+    // Set Tiberium harvest fields (2 near each base)
+    [{r:2,c:2}, {r:2,c:cols-3}, {r:rows-3,c:2}, {r:rows-3,c:cols-3}].forEach(p => GRID[p.r][p.c] = 2);
+
+    // Mountains / Obstacles placed symmetrically avoiding central pad corridor & bases
+    for (let r = 3; r < Math.floor(rows/2); r++) {
         for (let c = 1; c < cols - 1; c++) {
-            if (GRID[r][c] === 0 && (Math.abs(c - cx) > 1 || r >= 4) && Math.random() < 0.2) {
+            if (GRID[r][c] === 0 && Math.abs(c - cx) !== 0 && Math.abs(c - cx) !== 3 && Math.random() < 0.25) {
                 GRID[r][c] = 1; GRID[r][cols-1-c] = 1; GRID[rows-1-r][c] = 1; GRID[rows-1-r][cols-1-c] = 1;
             }
         }
@@ -512,12 +527,41 @@ function createTerrain() {
                     mesh.rotation.z = (Math.random()-0.5)*0.5;
                     terrainGroup.add(mesh);
                 }
-            } else if (t === 3) { // Platform
-                const geo = new THREE.BoxGeometry(TILE_SIZE_3D * 0.8, 1, TILE_SIZE_3D * 0.8);
-                const mat = new THREE.MeshLambertMaterial({ color: 0x444444 });
+            } else if (t === 3) { // Control Pad
+                const padGroup = new THREE.Group();
+
+                // Hexagonal/Octagonal Base Pad
+                const geo = new THREE.CylinderGeometry(TILE_SIZE_3D * 0.42, TILE_SIZE_3D * 0.45, 0.8, 6);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x333338, metalness: 0.8, roughness: 0.3 });
                 const mesh = new THREE.Mesh(geo, mat);
-                mesh.position.set(x, 0.5, z);
-                terrainGroup.add(mesh);
+                mesh.position.set(0, 0.4, 0);
+                mesh.receiveShadow = true;
+                padGroup.add(mesh);
+
+                // Outer Glowing Ring
+                const ringGeo = new THREE.TorusGeometry(TILE_SIZE_3D * 0.38, 0.3, 16, 32);
+                ringGeo.rotateX(Math.PI / 2);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                ringMesh.position.set(0, 0.85, 0);
+                padGroup.add(ringMesh);
+
+                // Inner Glowing Hex Pad
+                const innerGeo = new THREE.CylinderGeometry(TILE_SIZE_3D * 0.25, TILE_SIZE_3D * 0.25, 0.2, 6);
+                const innerMat = new THREE.MeshBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.8 });
+                const innerMesh = new THREE.Mesh(innerGeo, innerMat);
+                innerMesh.position.set(0, 0.82, 0);
+                padGroup.add(innerMesh);
+
+                padGroup.position.set(x, 0, z);
+                terrainGroup.add(padGroup);
+
+                // Find pad in controlPads array and bind mesh reference
+                const padData = controlPads.find(p => p.x === c && p.y === r);
+                if (padData) {
+                    padData.ringMesh = ringMesh;
+                    padData.innerMesh = innerMesh;
+                }
             } else if (t === 4) { // Base Area
                 const geo = new THREE.BoxGeometry(TILE_SIZE_3D * 0.9, 1, TILE_SIZE_3D * 0.9);
                 const mat = new THREE.MeshLambertMaterial({ color: 0x222222 }); // Neutral, colored box will be unit
@@ -582,17 +626,30 @@ function loop(ts) {
                             }
                             if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) { buyUnit(aiState.buildTarget, aiPlayerId); aiState.buildTarget = null; }
                             const fighters = myUnits.filter(u => !u.harvest);
-                            const platforms = []; for(let r=0; r<CONFIG.gridRows; r++) for(let c=0; c<CONFIG.gridCols; c++) if (GRID[r][c] === 3) platforms.push({x:c, y:r});
-                            const claimed = new Set();
-                            platforms.forEach(p => {
-                                let closest=null, minD=Infinity;
-                                fighters.forEach(u => { if (!claimed.has(u)) { const d = Math.hypot(u.x - p.x, u.y - p.y); if (d < minD) { minD = d; closest = u; } } });
-                                if (closest) { claimed.add(closest); if (minD > 0.5) closest.setPath(p.x, p.y); }
+                            const claimedFighters = new Set();
+
+                            // Assign fighters to capture/defend control pads (C&C Rivals priority)
+                            controlPads.forEach(pad => {
+                                let closest = null, minD = Infinity;
+                                fighters.forEach(u => {
+                                    if (!claimedFighters.has(u)) {
+                                        const d = Math.hypot(u.x - pad.x, u.y - pad.y);
+                                        if (d < minD) { minD = d; closest = u; }
+                                    }
+                                });
+                                if (closest) {
+                                    claimedFighters.add(closest);
+                                    if (Math.hypot(closest.x - pad.x, closest.y - pad.y) > 0.2) {
+                                        closest.setPath(pad.x, pad.y);
+                                    }
+                                }
                             });
+
+                            // Unassigned fighters engage nearby enemy forces or push towards enemy base
                             fighters.forEach(u => {
-                                if (!claimed.has(u) && u.state === 'idle') {
+                                if (!claimedFighters.has(u) && u.state === 'idle') {
                                     if (u.findTarget()) return;
-                                    let nearest=null, minD=Infinity;
+                                    let nearest = null, minD = Infinity;
                                     enemyUnits.forEach(e => { const d = Math.hypot(u.x - e.x, u.y - e.y); if (d < minD) { minD = d; nearest = e; } });
                                     const dBase = Math.hypot(u.x - enemyBaseCoord.x, u.y - enemyBaseCoord.y);
                                     u.setPath((dBase < minD || !nearest) ? enemyBaseCoord.x : nearest.x, (dBase < minD || !nearest) ? enemyBaseCoord.y : nearest.y);
@@ -601,13 +658,52 @@ function loop(ts) {
                         }
                     }
                 }
+                // Update Control Pads ownership & visual state
+                let padsP1 = 0, padsP2 = 0;
+                controlPads.forEach(pad => {
+                    let p1c = 0, p2c = 0;
+                    units.forEach(u => {
+                        if (Math.round(u.x) === pad.x && Math.round(u.y) === pad.y) {
+                            if (u.owner === 1) p1c++;
+                            else if (u.owner === -1) p2c++;
+                        }
+                    });
+                    pad.p1Count = p1c;
+                    pad.p2Count = p2c;
+
+                    if (p1c > 0 && p2c === 0) pad.owner = 1;
+                    else if (p2c > 0 && p1c === 0) pad.owner = -1;
+                    else if (p1c > 0 && p2c > 0) pad.owner = 0; // Contested
+
+                    if (pad.owner === 1) padsP1++;
+                    else if (pad.owner === -1) padsP2++;
+
+                    // Update 3D ring/inner colors
+                    if (pad.ringMesh) {
+                        const hexCol = pad.owner === 1 ? 0x00ff44 : (pad.owner === -1 ? 0xff4444 : (p1c > 0 && p2c > 0 ? 0xffaa00 : 0xaaaaaa));
+                        pad.ringMesh.material.color.setHex(hexCol);
+                        if (pad.innerMesh) pad.innerMesh.material.color.setHex(hexCol);
+                    }
+                });
+
+                // C&C Rivals Missile Charging Mechanics
                 if (!mushroomCloud && !projectiles.some(p => p.t === 'nuke')) {
-                    let p1=0, p2=0; units.forEach(u => { const t = GRID[Math.round(u.y)]?.[Math.round(u.x)]; if (t===3) { if(u.owner===1) p1++; else p2++; } });
                     const bar = document.getElementById('missile-fill');
-                    if (p1 > p2) { missileVal += 0.083; bar.style.background = CONFIG.colors.p; }
-                    else if (p2 > p1) { missileVal += 0.083; bar.style.background = CONFIG.colors.e; }
-                    else bar.style.background = '#555';
-                    if (missileVal >= 100) { missileVal = 0; const w = p1 > p2 ? 1 : -1; projectiles.push({t:'nuke', x:5.5, y:7.5, tx:5.5, ty:w===1?0:14, s:0.005, o:w}); }
+                    if (padsP1 > padsP2) {
+                        missileVal += 0.12; // Charge towards P1 missile target
+                        bar.style.background = CONFIG.colors.p;
+                    } else if (padsP2 > padsP1) {
+                        missileVal += 0.12;
+                        bar.style.background = CONFIG.colors.e;
+                    } else {
+                        bar.style.background = '#aaaaaa';
+                    }
+
+                    if (missileVal >= 100) {
+                        missileVal = 0;
+                        const winner = padsP1 > padsP2 ? 1 : (padsP2 > padsP1 ? -1 : (Math.random() < 0.5 ? 1 : -1));
+                        projectiles.push({t:'nuke', x:5.5, y:7.5, tx:5.5, ty:winner===1?0:CONFIG.gridRows-1, s:0.008, o:winner});
+                    }
                     bar.style.width = Math.min(missileVal, 100) + '%';
                 }
                 units.forEach(u => u.update());
@@ -671,6 +767,21 @@ function drawHUD() {
 
     const ts = TILE_SIZE_3D;
 
+    // Control Pads status indicators in HUD
+    controlPads.forEach((pad, idx) => {
+        const px = pad.x * ts + ts / 2, pz = pad.y * ts + ts / 2;
+        const p = project(px, 1, pz);
+        if (p.x >= 0 && p.x <= hudCanvas.width && p.y >= 0 && p.y <= hudCanvas.height) {
+            hudCtx.fillStyle = 'rgba(0,0,0,0.6)';
+            hudCtx.beginPath(); hudCtx.arc(p.x, p.y, 14, 0, Math.PI * 2); hudCtx.fill();
+            hudCtx.lineWidth = 2;
+            hudCtx.strokeStyle = pad.owner === 1 ? '#00ff44' : (pad.owner === -1 ? '#ff4444' : (pad.p1Count > 0 && pad.p2Count > 0 ? '#ffaa00' : '#888888'));
+            hudCtx.stroke();
+            hudCtx.fillStyle = '#ffffff'; hudCtx.font = 'bold 10px monospace'; hudCtx.textAlign = 'center'; hudCtx.textBaseline = 'middle';
+            hudCtx.fillText(`P${idx + 1}`, p.x, p.y);
+        }
+    });
+
     // Base HP bars (Static locations)
     if (GRID && GRID.length > 0) {
         [0, CONFIG.gridRows-1].forEach(r => {
@@ -680,9 +791,9 @@ function drawHUD() {
                 const bx = c*ts + ts/2, by = r*ts + ts/2;
                 const p = project(bx, 10, by); // HP bar floating above
                 const hp = o===1 ? bases.p : bases.e;
-                const width = 60;
-                hudCtx.fillStyle = '#000'; hudCtx.fillRect(p.x - width/2, p.y, width, 6);
-                hudCtx.fillStyle = o===1?'#0f0':'#f00'; hudCtx.fillRect(p.x - width/2, p.y, width * (hp/2000), 6);
+                const width = 70;
+                hudCtx.fillStyle = 'rgba(0, 0, 0, 0.7)'; hudCtx.fillRect(p.x - width/2 - 2, p.y - 2, width + 4, 10);
+                hudCtx.fillStyle = o===1?'#00ff44':'#ff4444'; hudCtx.fillRect(p.x - width/2, p.y, width * Math.max(0, hp/2000), 6);
             }
         });
     }
