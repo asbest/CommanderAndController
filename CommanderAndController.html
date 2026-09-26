@@ -241,7 +241,7 @@
 </div>
 
 <script>
-const CONFIG = { gridCols: 11, gridRows: 15, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 500, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
+const CONFIG = { gridCols: 15, gridRows: 21, tileSize: 0, gridOffsetX: 0, gridOffsetY: 0, startMoney: 500, colors: { p: '#44ff44', e: '#ff4444', tib: '#00ff66', pad: '#ffff00', mountain: '#555' } };
 
 // Refined Balance aligned with C&C Rivals Rock-Paper-Scissors Dynamics
 const DB = {
@@ -432,9 +432,9 @@ class MushroomCloud {
 }
 
 let controlPads = [
-    { id: 0, x: 2, y: 7, owner: 0, p1Count: 0, p2Count: 0, mesh: null },
-    { id: 1, x: 5, y: 7, owner: 0, p1Count: 0, p2Count: 0, mesh: null },
-    { id: 2, x: 8, y: 7, owner: 0, p1Count: 0, p2Count: 0, mesh: null }
+    { id: 0, x: 3, y: 10, owner: 0, p1Count: 0, p2Count: 0, mesh: null },
+    { id: 1, x: 7, y: 10, owner: 0, p1Count: 0, p2Count: 0, mesh: null },
+    { id: 2, x: 11, y: 10, owner: 0, p1Count: 0, p2Count: 0, mesh: null }
 ];
 
 function generateMap() {
@@ -446,16 +446,16 @@ function generateMap() {
     // Reset control pads state
     controlPads.forEach(p => { p.owner = 0; p.p1Count = 0; p.p2Count = 0; p.mesh = null; });
 
-    // Set 3 Missile Control Pads at center zone (y=7, x=2, 5, 8)
+    // Set 3 Missile Control Pads at center zone (y=10, x=3, 7, 11)
     controlPads.forEach(p => GRID[p.y][p.x] = 3);
 
     // Set Tiberium harvest fields (2 near each base)
-    [{r:2,c:2}, {r:2,c:cols-3}, {r:rows-3,c:2}, {r:rows-3,c:cols-3}].forEach(p => GRID[p.r][p.c] = 2);
+    [{r:3,c:3}, {r:3,c:cols-4}, {r:rows-4,c:3}, {r:rows-4,c:cols-4}].forEach(p => GRID[p.r][p.c] = 2);
 
     // Mountains / Obstacles placed symmetrically avoiding central pad corridor & bases
-    for (let r = 3; r < Math.floor(rows/2); r++) {
+    for (let r = 4; r < Math.floor(rows/2); r++) {
         for (let c = 1; c < cols - 1; c++) {
-            if (GRID[r][c] === 0 && Math.abs(c - cx) !== 0 && Math.abs(c - cx) !== 3 && Math.random() < 0.25) {
+            if (GRID[r][c] === 0 && Math.abs(c - cx) !== 0 && Math.abs(c - cx) !== 4 && Math.random() < 0.22) {
                 GRID[r][c] = 1; GRID[r][cols-1-c] = 1; GRID[rows-1-r][c] = 1; GRID[rows-1-r][cols-1-c] = 1;
             }
         }
@@ -768,7 +768,9 @@ function loop(ts) {
                     if (missileVal >= 100) {
                         missileVal = 0;
                         const winner = padsP1 > padsP2 ? 1 : (padsP2 > padsP1 ? -1 : (Math.random() < 0.5 ? 1 : -1));
-                        projectiles.push({t:'nuke', x:5.5, y:7.5, tx:5.5, ty:winner===1?0:CONFIG.gridRows-1, s:0.008, o:winner});
+                        const midX = Math.floor(CONFIG.gridCols/2) + 0.5;
+                        const midY = Math.floor(CONFIG.gridRows/2) + 0.5;
+                        projectiles.push({t:'nuke', x:midX, y:midY, tx:midX, ty:winner===1?0:CONFIG.gridRows-1, s:0.008, o:winner});
                     }
                     bar.style.width = Math.min(missileVal, 100) + '%';
                 }
@@ -777,7 +779,9 @@ function loop(ts) {
                     if (p.t === 'nuke') {
                         const d = Math.hypot(p.tx-p.x, p.ty-p.y);
                         if (d < p.s) { SFX.nuke(); mushroomCloud=new MushroomCloud(p.tx, p.ty); if(p.o===1) bases.e /= 2; else bases.p /= 2; updateHP(); return false; }
-                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s; if(Math.random()>0.1) addParticles(p.x, p.y, 1, 'flash'); return true;
+                        p.x+=(p.tx-p.x)/d*p.s; p.y+=(p.ty-p.y)/d*p.s; p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+                        addParticles(p.x, p.y, 2, 'explode'); addParticles(p.x, p.y, 2, 'smoke');
+                        return true;
                     }
                     const targetAlive = p.tar && (p.tar.isBase || units.includes(p.tar));
                     if (p.t === 'missile') {
@@ -1081,13 +1085,21 @@ function update3D() {
 
         const x = p.x * TILE_SIZE_3D + TILE_SIZE_3D/2;
         const z = p.y * TILE_SIZE_3D + TILE_SIZE_3D/2;
-        item.g.position.set(x, 4, z);
-        item.g.rotation.y = -p.angle + Math.PI/2;
-        item.g.scale.set(1.5, 1.5, 1.5);
 
-        if (p.t === 'missile') item.m.visible = true;
-        else if (p.t === 'bullet') { item.b.visible = true; item.b.material = (p.c === '#0f0' || p.c === '#00ff00' || p.c === '#44ff44') ? MATS.bulletP : MATS.bulletE; }
-        else if (p.t === 'nuke') item.n.visible = true;
+        if (p.t === 'nuke') {
+            item.n.visible = true;
+            // Elevate and enlarge atomic missile dramatically for high visibility
+            item.g.position.set(x, 15, z);
+            item.g.rotation.y = -p.angle + Math.PI/2;
+            item.g.scale.set(5.0, 5.0, 5.0);
+        } else {
+            item.g.position.set(x, 4, z);
+            item.g.rotation.y = -p.angle + Math.PI/2;
+            item.g.scale.set(1.5, 1.5, 1.5);
+
+            if (p.t === 'missile') item.m.visible = true;
+            else if (p.t === 'bullet') { item.b.visible = true; item.b.material = (p.c === '#0f0' || p.c === '#00ff00' || p.c === '#44ff44') ? MATS.bulletP : MATS.bulletE; }
+        }
     });
 
     // Debris
