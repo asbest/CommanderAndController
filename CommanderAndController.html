@@ -200,6 +200,16 @@
             </div>
 
             <div class="menu-group">
+                <div class="group-label">Map & Generator Selection</div>
+                <select id="map-select" class="input-box" style="margin-bottom: 8px; width: 100%; cursor: pointer;">
+                    <option value="random">🎲 Random Level Generator</option>
+                    <option value="open">🌾 Open Plains (Low Obstacles)</option>
+                    <option value="canyon">⛰️ Canyon Chokepoints (Heavy)</option>
+                    <option value="tiberium">💎 Tiberium Basin (Rich Crystal Fields)</option>
+                </select>
+            </div>
+
+            <div class="menu-group">
                 <div class="group-label">Solo Operations</div>
                 <button class="btn-large" onclick="initSinglePlayer()">Single Player</button>
             </div>
@@ -449,14 +459,30 @@ function generateMap() {
     // Set 3 Missile Control Pads at center zone (y=10, x=3, 7, 11)
     controlPads.forEach(p => GRID[p.y][p.x] = 3);
 
-    // Set Tiberium harvest fields (2 near each base)
-    [{r:3,c:3}, {r:3,c:cols-4}, {r:rows-4,c:3}, {r:rows-4,c:cols-4}].forEach(p => GRID[p.r][p.c] = 2);
+    // Determine map preset type
+    const mapSel = document.getElementById('map-select');
+    const mapType = mapSel ? mapSel.value : 'random';
+
+    // Tiberium harvest fields placement based on preset
+    let tibFields = [{r:3,c:3}, {r:3,c:cols-4}, {r:rows-4,c:3}, {r:rows-4,c:cols-4}];
+    if (mapType === 'tiberium') {
+        tibFields.push({r:6,c:cx}, {r:rows-7,c:cx});
+    }
+    tibFields.forEach(p => { if (GRID[p.r][p.c] === 0) GRID[p.r][p.c] = 2; });
+
+    // Obstacle / Mountain density & layout parameters
+    let density = 0.22;
+    if (mapType === 'open') density = 0.08;
+    else if (mapType === 'canyon') density = 0.38;
+    else if (mapType === 'random') density = 0.15 + Math.random() * 0.20;
 
     // Mountains / Obstacles placed symmetrically avoiding central pad corridor & bases
-    for (let r = 4; r < Math.floor(rows/2); r++) {
+    for (let r = 2; r < Math.floor(rows/2); r++) {
         for (let c = 1; c < cols - 1; c++) {
-            if (GRID[r][c] === 0 && Math.abs(c - cx) !== 0 && Math.abs(c - cx) !== 4 && Math.random() < 0.22) {
-                GRID[r][c] = 1; GRID[r][cols-1-c] = 1; GRID[rows-1-r][c] = 1; GRID[rows-1-r][cols-1-c] = 1;
+            if (GRID[r][c] === 0 && Math.abs(c - cx) !== 0 && Math.abs(c - cx) !== 4) {
+                if (Math.random() < density) {
+                    GRID[r][c] = 1; GRID[r][cols-1-c] = 1; GRID[rows-1-r][c] = 1; GRID[rows-1-r][cols-1-c] = 1;
+                }
             }
         }
     }
