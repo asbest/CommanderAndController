@@ -237,6 +237,7 @@
         <div class="glass-panel">
             <h1 style="font-size: 24px;">System Paused</h1>
             <button class="btn-large" onclick="togglePause()">Resume</button>
+            <button id="music-toggle-btn" class="btn-large secondary" onclick="toggleMusic()">Music: ON</button>
             <button class="btn-large secondary" onclick="location.reload()">Abort Mission</button>
         </div>
     </div>
@@ -286,6 +287,32 @@ const aiState = { strategy: 'hold', buildTarget: null };
 // --- AUDIO ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx, audioEnabled = false;
+let bgMusic = new Audio('gameplayMusic.mp3');
+bgMusic.loop = true;
+let musicEnabled = true;
+
+function playMusic() {
+    if (musicEnabled) {
+        bgMusic.play().catch(e => console.log("Audio play blocked by browser policy until interaction", e));
+    }
+}
+
+function stopMusic() {
+    bgMusic.pause();
+    bgMusic.currentTime = 0;
+}
+
+function toggleMusic() {
+    musicEnabled = !musicEnabled;
+    const btn = document.getElementById('music-toggle-btn');
+    if (btn) btn.innerText = musicEnabled ? "Music: ON" : "Music: OFF";
+    if (musicEnabled) {
+        if (gameActive) playMusic();
+    } else {
+        bgMusic.pause();
+    }
+}
+
 const SFX = {
     init: () => { try { if (!AudioContext) return; if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume().then(() => audioEnabled = true); else audioEnabled = true; } catch (e) { audioEnabled = false; } },
     tone: (t, f1, f2, d, v1, v2) => { if (!audioEnabled || isPaused || !audioCtx) return; try { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = t; o.frequency.setValueAtTime(f1, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(f2, audioCtx.currentTime+d); g.gain.setValueAtTime(v1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(v2, audioCtx.currentTime+d); o.start(); o.stop(audioCtx.currentTime+d); } catch(e){} },
@@ -1632,8 +1659,8 @@ function initJoinGame() { const id=document.getElementById('join-id-input').valu
 function cancelLobby() { if(peer) peer.destroy(); document.getElementById('lobby-ui').classList.add('hidden'); document.getElementById('main-menu-panel').classList.remove('hidden'); }
 function setupNet() { conn.on('data', d => { if(isHost && d.t==='in') handleInput(null, null, d.x, d.y, -myPlayerId); if(isHost && d.t==='buy') buyUnit(d.k, -myPlayerId); if(!isHost) { if(d.t==='init') { GRID=d.g; myPlayerId=-d.h; startGameClient(); } if(d.type==='state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; n.hoverOffset=x.ho; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
 function startMP(host) { isMultiplayer=true; isHost=host; if(host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; }
-function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive=true; setupUIForSide(); SFX.init(); createTerrain(); }
+function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; playMusic(); }
+function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive=true; setupUIForSide(); SFX.init(); createTerrain(); playMusic(); }
 function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], funds=p===1?money:enemyMoney; if(funds >= d.cost) { const rStart=p===1?CONFIG.gridRows-1:0; let placed=false; for(let r of [rStart, p===1?CONFIG.gridRows-2:1]) { for(let c=0; c<CONFIG.gridCols; c++) { if(!units.some(u=>Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u=new Unit(k, p, c, r); units.push(u); if(p===myPlayerId) { selectedUnit=u; spawnFlash=10; } placed=true; break; } } if(placed) break; } if(!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'explode'); } }
 
 function handleInput(e, _, nx, ny, netPlayer) {
@@ -1683,7 +1710,7 @@ function handleInput(e, _, nx, ny, netPlayer) {
 function setupUIForSide() { const g=myPlayerId===1; document.getElementById('right-hp-label').innerText = g ? "ALLIED" : "BROTHERS"; document.getElementById('right-hp-label').style.color = g ? CONFIG.colors.p : CONFIG.colors.e; document.getElementById('left-hp-label').innerText = g ? "BROTHERS" : "ALLIED"; document.getElementById('left-hp-label').style.color = g ? CONFIG.colors.e : CONFIG.colors.p; }
 function updateHP() { const max=2000, g=myPlayerId===1, php=g?bases.p:bases.e, ehp=g?bases.e:bases.p; const rb=document.getElementById('right-hp').querySelector('.hp-bar-fill'); rb.style.width=`${(php/max)*100}%`; rb.style.backgroundColor=g?CONFIG.colors.p:CONFIG.colors.e; document.getElementById('right-hp').querySelector('.hp-bar-text').innerText=`${Math.round(php)}/${max}`; const lb=document.getElementById('left-hp').querySelector('.hp-bar-fill'); lb.style.width=`${(ehp/max)*100}%`; lb.style.backgroundColor=g?CONFIG.colors.e:CONFIG.colors.p; document.getElementById('left-hp').querySelector('.hp-bar-text').innerText=`${Math.round(ehp)}/${max}`; }
 function togglePause() { isPaused=!isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
-function endGame(o) { if(!gameActive) return; gameActive=false; document.getElementById('end-title').innerText = o; document.getElementById('modal-end').classList.remove('hidden'); }
+function endGame(o) { if(!gameActive) return; gameActive=false; stopMusic(); document.getElementById('end-title').innerText = o; document.getElementById('modal-end').classList.remove('hidden'); }
 
 // 3D Initialization
 function init3D() {
