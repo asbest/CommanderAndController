@@ -273,6 +273,10 @@ let money = 0, enemyMoney = 0, units = [], particles = [], debris = [], projecti
 let selectedUnit = null, missileVal = 0, bases = { p: 2000, e: 2000 }, lastFrameTime = 0, spawnFlash = 0, mushroomCloud = null, aiTick = 0;
 let peer = null, conn = null;
 
+// FPS MODE GLOBALS
+let isFpsMode = false, fpsUnit = null, fpsPitch = 0, fpsYaw = 0, fpsBtnBounds = null, exitFpsBtnBounds = null;
+const keysPressed = {};
+
 // THREE.JS GLOBALS
 let scene, camera, renderer, raycaster, mouse, groundPlane;
 let unitMeshes = new Map(); // Map unit object to mesh
@@ -779,10 +783,89 @@ function runAiForPlayer(pId) {
     }
 }
 
+function updateFpsControls() {
+    if (!isFpsMode || !fpsUnit || !units.includes(fpsUnit) || fpsUnit.hp <= 0) {
+        if (isFpsMode) exitFpsMode();
+        return;
+    }
+
+    const moveSpd = fpsUnit.spd * 1.5;
+    const rotSpd = 0.05;
+
+    if (keysPressed['KeyA'] || keysPressed['ArrowLeft']) fpsYaw += rotSpd;
+    if (keysPressed['KeyD'] || keysPressed['ArrowRight']) fpsYaw -= rotSpd;
+
+    // Direct orientation angle
+    fpsUnit.attackAngle = -fpsYaw + Math.PI/2;
+
+    let fwd = 0;
+    if (keysPressed['KeyW'] || keysPressed['ArrowUp']) fwd += 1;
+    if (keysPressed['KeyS'] || keysPressed['ArrowDown']) fwd -= 1;
+
+    if (fwd !== 0) {
+        const dx = Math.cos(fpsYaw) * moveSpd * fwd;
+        const dz = Math.sin(fpsYaw) * moveSpd * fwd;
+        const nx = fpsUnit.x + dx;
+        const ny = fpsUnit.y + dz;
+
+        // Grid bounds check
+        if (nx >= 0 && nx < CONFIG.gridCols && ny >= 0 && ny < CONFIG.gridRows) {
+            if (GRID[Math.round(ny)] && GRID[Math.round(ny)][Math.round(nx)] !== 1 || fpsUnit.type === 'air') {
+                fpsUnit.x = nx;
+                fpsUnit.y = ny;
+                fpsUnit.vx = nx;
+                fpsUnit.vy = ny;
+                fpsUnit.path = [];
+                fpsUnit.state = 'idle';
+            }
+        }
+    }
+
+    if (keysPressed['Space']) {
+        // Fire weapon forward
+        const targetPoint = {
+            isBase: false,
+            x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+            y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+            vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+            vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+            type: 'ground'
+        };
+        fpsUnit.attack(targetPoint);
+    }
+
+    // Position 3D Camera for FPS
+    const ux = fpsUnit.vx * TILE_SIZE_3D + TILE_SIZE_3D/2;
+    const uy = fpsUnit.type === 'air' ? 8 : 2.5;
+    const uz = fpsUnit.vy * TILE_SIZE_3D + TILE_SIZE_3D/2;
+
+    camera.up.set(0, 1, 0);
+    camera.position.set(ux, uy, uz);
+    camera.lookAt(ux + Math.cos(fpsYaw) * 50, uy, uz + Math.sin(fpsYaw) * 50);
+}
+
+function enterFpsMode(unit) {
+    if (!unit) return;
+    isFpsMode = true;
+    fpsUnit = unit;
+    fpsYaw = unit.attackAngle ? (-unit.attackAngle + Math.PI/2) : -Math.PI/2;
+    document.getElementById('build-menu').style.display = 'none';
+}
+
+function exitFpsMode() {
+    isFpsMode = false;
+    fpsUnit = null;
+    if (!isAiVsAi) document.getElementById('build-menu').style.display = 'flex';
+    onWindowResize(); // Restore top-down camera view
+}
+
 function loop(ts) {
     const dt = ts - lastFrameTime; lastFrameTime = ts;
     try {
         if (gameActive && !isPaused) {
+            if (isFpsMode) {
+                updateFpsControls();
+            }
             if (isHost) {
                 if (ts % 1000 < 20) { let i1=5, i2=5; units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=6; else i2+=6; } }); money+=i1; enemyMoney+=i2; }
                 if (isAiVsAi) {
@@ -888,8 +971,13 @@ function loop(ts) {
                 }
             }
             if (spawnFlash > 0) spawnFlash--;
-            if (isAiVsAi) {
-                document.getElementById('money-display').innerText = `G:${Math.floor(money)} | R:${Math.floor(enemyMoney)}`;
+            if (isAiVsAi || isFpsMode) {
+                if (isAiVsAi) {
+                    document.getElementById('money-display').innerText = `G:${Math.floor(money)} | R:${Math.floor(enemyMoney)}`;
+                } else {
+                    const myFunds = myPlayerId === 1 ? money : enemyMoney;
+                    document.getElementById('money-display').innerText = Math.floor(myFunds);
+                }
                 document.getElementById('build-menu').style.display = 'none';
             } else {
                 document.getElementById('build-menu').style.display = 'flex';
@@ -957,12 +1045,27 @@ function drawHUD() {
         const pos = project(x, 0, z);
         const top = project(x, 4, z); // Above unit
 
-        if (selectedUnit === u) {
+        if (selectedUnit === u && !isFpsMode) {
             hudCtx.strokeStyle = '#fff'; hudCtx.lineWidth = 1;
             hudCtx.beginPath(); hudCtx.arc(pos.x, pos.y, 20, 0, Math.PI*2); hudCtx.stroke();
+
+            // FPS Mode button overlay near selected unit
+            if (u.owner === myPlayerId) {
+                const btnX = pos.x + 28, btnY = pos.y - 14, btnW = 34, btnH = 28;
+                fpsBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
+                hudCtx.fillStyle = 'rgba(0, 40, 0, 0.85)';
+                hudCtx.strokeStyle = '#00ff00';
+                hudCtx.lineWidth = 1.5;
+                hudCtx.fillRect(btnX, btnY, btnW, btnH);
+                hudCtx.strokeRect(btnX, btnY, btnW, btnH);
+                hudCtx.fillStyle = '#00ff00';
+                hudCtx.font = '16px sans-serif';
+                hudCtx.textAlign = 'center';
+                hudCtx.textBaseline = 'middle';
+                hudCtx.fillText('👁️', btnX + btnW/2, btnY + btnH/2);
+            }
+
             if (u.path.length) {
-                // Draw path in 2D overlay? Or 3D?
-                // Let's do 2D overlay for now
                 hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; hudCtx.setLineDash([4, 4]);
                 hudCtx.beginPath(); hudCtx.moveTo(pos.x, pos.y);
                 u.path.forEach(node => {
@@ -981,6 +1084,37 @@ function drawHUD() {
             hudCtx.fillRect(top.x - w/2, top.y, w * (u.hp/u.maxHp), 4);
         }
     });
+
+    if (isFpsMode) {
+        // Crosshair
+        const cx = hudCanvas.width / 2, cy = hudCanvas.height / 2;
+        hudCtx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+        hudCtx.lineWidth = 2;
+        hudCtx.beginPath();
+        hudCtx.moveTo(cx - 10, cy); hudCtx.lineTo(cx + 10, cy);
+        hudCtx.moveTo(cx, cy - 10); hudCtx.lineTo(cx, cy + 10);
+        hudCtx.stroke();
+        hudCtx.beginPath(); hudCtx.arc(cx, cy, 16, 0, Math.PI*2); hudCtx.stroke();
+
+        // Exit FPS Button
+        const eX = hudCanvas.width / 2 - 60, eY = hudCanvas.height - 70, eW = 120, eH = 36;
+        exitFpsBtnBounds = { x: eX, y: eY, w: eW, h: eH };
+        hudCtx.fillStyle = 'rgba(200, 0, 0, 0.85)';
+        hudCtx.strokeStyle = '#ffffff';
+        hudCtx.lineWidth = 2;
+        hudCtx.fillRect(eX, eY, eW, eH);
+        hudCtx.strokeRect(eX, eY, eW, eH);
+        hudCtx.fillStyle = '#ffffff';
+        hudCtx.font = 'bold 12px sans-serif';
+        hudCtx.textAlign = 'center';
+        hudCtx.textBaseline = 'middle';
+        hudCtx.fillText('EXIT FPS [ESC]', eX + eW/2, eY + eH/2);
+
+        // Control hints
+        hudCtx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+        hudCtx.font = 'bold 12px monospace';
+        hudCtx.fillText('WASD / ARROWS: MOVE/TURN | SPACE: FIRE', cx, cy + 36);
+    }
 
     if (spawnFlash>0) {
         hudCtx.fillStyle = `rgba(0,255,0,${spawnFlash/20})`;
@@ -1703,6 +1837,43 @@ function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], fund
 
 function handleInput(e, _, nx, ny, netPlayer) {
     if (e) {
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+
+        // Check Exit FPS button click
+        if (isFpsMode && exitFpsBtnBounds) {
+            if (cx >= exitFpsBtnBounds.x && cx <= exitFpsBtnBounds.x + exitFpsBtnBounds.w &&
+                cy >= exitFpsBtnBounds.y && cy <= exitFpsBtnBounds.y + exitFpsBtnBounds.h) {
+                exitFpsMode();
+                return;
+            }
+        }
+
+        // Check FPS mode enter button click
+        if (!isFpsMode && fpsBtnBounds && selectedUnit) {
+            if (cx >= fpsBtnBounds.x && cx <= fpsBtnBounds.x + fpsBtnBounds.w &&
+                cy >= fpsBtnBounds.y && cy <= fpsBtnBounds.y + fpsBtnBounds.h) {
+                enterFpsMode(selectedUnit);
+                return;
+            }
+        }
+
+        if (isFpsMode) {
+            // Left click in FPS mode fires weapon
+            if (fpsUnit) {
+                const targetPoint = {
+                    isBase: false,
+                    x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+                    y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+                    vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+                    vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+                    type: 'ground'
+                };
+                fpsUnit.attack(targetPoint);
+            }
+            return;
+        }
+
         // Only handle input on the canvas
         if (e.target !== renderer.domElement) return;
         if (!groundPlane) return;
@@ -1711,8 +1882,6 @@ function handleInput(e, _, nx, ny, netPlayer) {
 
         // 3D Raycasting
         const rect = renderer.domElement.getBoundingClientRect();
-        const cx = e.touches ? e.touches[0].clientX : e.clientX;
-        const cy = e.touches ? e.touches[0].clientY : e.clientY;
 
         mouse.x = ((cx - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((cy - rect.top) / rect.height) * 2 + 1;
@@ -1800,6 +1969,17 @@ function init3D() {
     window.addEventListener('resize', onWindowResize, false);
     document.addEventListener('mousedown', handleInput);
     document.addEventListener('touchstart', handleInput, {passive: false});
+
+    window.addEventListener('keydown', e => {
+        keysPressed[e.code] = true;
+        if (e.code === 'Escape' && isFpsMode) {
+            exitFpsMode();
+        }
+    });
+
+    window.addEventListener('keyup', e => {
+        keysPressed[e.code] = false;
+    });
 
     onWindowResize();
 }
