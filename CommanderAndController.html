@@ -40,13 +40,15 @@
         .missile-timer { width: 160px; height: 4px; background: #111; border: 1px solid #444; border-radius: 2px; overflow: hidden; position: relative; }
         #missile-fill { height: 100%; width: 0%; transition: width 0.1s linear; background: #fff; box-shadow: 0 0 10px #fff; }
 
-        #pause-btn { 
+        #fps-btn, #pause-btn {
             background: rgba(0, 255, 0, 0.1); color: #00ff00; border: 1px solid #00ff00;
             padding: 6px 14px; font-size: 12px; font-weight: 700; letter-spacing: 1px;
             cursor: pointer; border-radius: 4px; transition: all 0.2s; 
             text-shadow: 0 0 5px rgba(0,255,0,0.5);
         }
-        #pause-btn:hover { background: rgba(0, 255, 0, 0.3); box-shadow: 0 0 10px rgba(0,255,0,0.4); }
+        #fps-btn:hover, #pause-btn:hover { background: rgba(0, 255, 0, 0.3); box-shadow: 0 0 10px rgba(0,255,0,0.4); }
+        #fps-btn.active { background: rgba(0, 255, 0, 0.6); color: #fff; box-shadow: 0 0 15px rgba(0,255,0,0.8); }
+        #fps-btn.disabled { opacity: 0.4; cursor: not-allowed; border-color: #444; color: #888; }
 
         .resource-display { 
             position: absolute; bottom: 130px; left: 20px; font-size: 32px;
@@ -171,6 +173,7 @@
                     <span class="hp-label" id="right-hp-label"></span>
                     <div id="right-hp" class="hp-bar-container"><div class="hp-bar-fill"><span class="hp-bar-text"></span></div></div>
                 </div>
+                <button id="fps-btn" onclick="toggleFpsModeFromHeader()">👁️ FPS</button>
                 <button id="pause-btn" onclick="togglePause()">PAUSE</button>
             </div>
         </div>
@@ -807,16 +810,17 @@ function updateFpsControls() {
     if (keysPressed['KeyA'] || keysPressed['ArrowLeft']) fpsYaw += rotSpd;
     if (keysPressed['KeyD'] || keysPressed['ArrowRight']) fpsYaw -= rotSpd;
 
-    // Touch joystick rotation
+    // Touch joystick processing
     let stickFwd = 0;
     if (touchControls.stickActive) {
-        const dx = touchControls.stickCurrX - touchControls.stickBaseX;
-        const dy = touchControls.stickCurrY - touchControls.stickBaseY;
-        const dist = Math.hypot(dx, dy);
-        if (dist > 10) {
-            fpsYaw -= (dx / 80) * rotSpd;
-            stickFwd = -dy / 80;
-        }
+        const maxR = 50;
+        const normX = (touchControls.stickCurrX - touchControls.stickBaseX) / maxR;
+        const normY = (touchControls.stickCurrY - touchControls.stickBaseY) / maxR;
+
+        // Steering / rotation based on joystick horizontal deflection
+        fpsYaw -= normX * rotSpd * 1.2;
+        // Forward / backward driving based on joystick vertical deflection
+        stickFwd = -normY;
     }
 
     // Direct orientation angle
@@ -871,18 +875,47 @@ function updateFpsControls() {
     camera.lookAt(ux + Math.cos(fpsYaw) * 50, uy, uz + Math.sin(fpsYaw) * 50);
 }
 
+function toggleFpsModeFromHeader() {
+    if (isFpsMode) {
+        exitFpsMode();
+    } else if (selectedUnit && selectedUnit.owner === myPlayerId && selectedUnit.hp > 0) {
+        enterFpsMode(selectedUnit);
+    }
+}
+
+function updateFpsBtnUI() {
+    const btn = document.getElementById('fps-btn');
+    if (!btn) return;
+    if (isFpsMode) {
+        btn.classList.add('active');
+        btn.classList.remove('disabled');
+        btn.innerText = '👁️ EXIT FPS';
+    } else {
+        btn.classList.remove('active');
+        if (selectedUnit && selectedUnit.owner === myPlayerId && selectedUnit.hp > 0) {
+            btn.classList.remove('disabled');
+            btn.innerText = '👁️ FPS';
+        } else {
+            btn.classList.add('disabled');
+            btn.innerText = '👁️ FPS';
+        }
+    }
+}
+
 function enterFpsMode(unit) {
     if (!unit) return;
     isFpsMode = true;
     fpsUnit = unit;
     fpsYaw = unit.attackAngle ? (-unit.attackAngle + Math.PI/2) : -Math.PI/2;
     document.getElementById('build-menu').style.display = 'none';
+    updateFpsBtnUI();
 }
 
 function exitFpsMode() {
     isFpsMode = false;
     fpsUnit = null;
     if (!isAiVsAi) document.getElementById('build-menu').style.display = 'flex';
+    updateFpsBtnUI();
     onWindowResize(); // Restore top-down camera view
 }
 
@@ -1013,6 +1046,7 @@ function loop(ts) {
                 document.querySelectorAll('.card').forEach(b => { if (myFunds < b.dataset.cost) b.classList.add('disabled'); else b.classList.remove('disabled'); });
             }
         }
+        updateFpsBtnUI();
         update3D();
         renderer.render(scene, camera);
         drawHUD();
@@ -1076,22 +1110,6 @@ function drawHUD() {
         if (selectedUnit === u && !isFpsMode) {
             hudCtx.strokeStyle = '#fff'; hudCtx.lineWidth = 1;
             hudCtx.beginPath(); hudCtx.arc(pos.x, pos.y, 20, 0, Math.PI*2); hudCtx.stroke();
-
-            // FPS Mode button overlay near selected unit
-            if (u.owner === myPlayerId) {
-                const btnX = pos.x + 25, btnY = pos.y - 35, btnW = 40, btnH = 30;
-                fpsBtnBounds = { x: btnX, y: btnY, w: btnW, h: btnH };
-                hudCtx.fillStyle = 'rgba(0, 180, 0, 0.9)';
-                hudCtx.strokeStyle = '#ffffff';
-                hudCtx.lineWidth = 2;
-                hudCtx.fillRect(btnX, btnY, btnW, btnH);
-                hudCtx.strokeRect(btnX, btnY, btnW, btnH);
-                hudCtx.fillStyle = '#ffffff';
-                hudCtx.font = '16px sans-serif';
-                hudCtx.textAlign = 'center';
-                hudCtx.textBaseline = 'middle';
-                hudCtx.fillText('👁️', btnX + btnW/2, btnY + btnH/2);
-            }
 
             if (u.path.length) {
                 hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; hudCtx.setLineDash([4, 4]);
@@ -2046,6 +2064,7 @@ function init3D() {
     document.addEventListener('mousedown', handleInput);
     document.addEventListener('touchstart', e => {
         if (isFpsMode) {
+            if (e.cancelable) e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 const tx = touch.clientX, ty = touch.clientY;
@@ -2074,7 +2093,7 @@ function init3D() {
                     continue;
                 }
 
-                // Left side: Joystick
+                // Left side: Virtual Joystick
                 if (tx < window.innerWidth * 0.45 && !touchControls.stickActive) {
                     touchControls.stickActive = true;
                     touchControls.stickTouchId = touch.identifier;
@@ -2097,11 +2116,21 @@ function init3D() {
 
     document.addEventListener('touchmove', e => {
         if (isFpsMode) {
+            if (e.cancelable) e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === touchControls.stickTouchId) {
-                    touchControls.stickCurrX = touch.clientX;
-                    touchControls.stickCurrY = touch.clientY;
+                    const dx = touch.clientX - touchControls.stickBaseX;
+                    const dy = touch.clientY - touchControls.stickBaseY;
+                    const dist = Math.hypot(dx, dy);
+                    const maxR = 50;
+                    if (dist > maxR) {
+                        touchControls.stickCurrX = touchControls.stickBaseX + (dx / dist) * maxR;
+                        touchControls.stickCurrY = touchControls.stickBaseY + (dy / dist) * maxR;
+                    } else {
+                        touchControls.stickCurrX = touch.clientX;
+                        touchControls.stickCurrY = touch.clientY;
+                    }
                 } else if (touch.identifier === touchControls.lookTouchId) {
                     const dx = touch.clientX - touchControls.lookLastX;
                     fpsYaw -= dx * 0.008; // Touch swipe horizontal look rotation
@@ -2114,6 +2143,7 @@ function init3D() {
 
     const resetTouch = e => {
         if (isFpsMode) {
+            if (e.cancelable) e.preventDefault();
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === touchControls.stickTouchId) {
@@ -2125,8 +2155,8 @@ function init3D() {
             }
         }
     };
-    document.addEventListener('touchend', resetTouch);
-    document.addEventListener('touchcancel', resetTouch);
+    document.addEventListener('touchend', resetTouch, {passive: false});
+    document.addEventListener('touchcancel', resetTouch, {passive: false});
 
     window.addEventListener('keydown', e => {
         keysPressed[e.code] = true;
