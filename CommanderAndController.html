@@ -274,8 +274,19 @@ let selectedUnit = null, missileVal = 0, bases = { p: 2000, e: 2000 }, lastFrame
 let peer = null, conn = null;
 
 // FPS MODE GLOBALS
-let isFpsMode = false, fpsUnit = null, fpsPitch = 0, fpsYaw = 0, fpsBtnBounds = null, exitFpsBtnBounds = null;
+let isFpsMode = false, fpsUnit = null, fpsPitch = 0, fpsYaw = 0, fpsBtnBounds = null, exitFpsBtnBounds = null, fireBtnBounds = null;
 const keysPressed = {};
+const touchControls = {
+    stickActive: false,
+    stickTouchId: null,
+    stickBaseX: 0,
+    stickBaseY: 0,
+    stickCurrX: 0,
+    stickCurrY: 0,
+    lookTouchId: null,
+    lookLastX: 0,
+    lookLastY: 0
+};
 
 // THREE.JS GLOBALS
 let scene, camera, renderer, raycaster, mouse, groundPlane;
@@ -792,8 +803,21 @@ function updateFpsControls() {
     const moveSpd = fpsUnit.spd * 1.5;
     const rotSpd = 0.05;
 
+    // Keyboard rotation
     if (keysPressed['KeyA'] || keysPressed['ArrowLeft']) fpsYaw += rotSpd;
     if (keysPressed['KeyD'] || keysPressed['ArrowRight']) fpsYaw -= rotSpd;
+
+    // Touch joystick rotation
+    let stickFwd = 0;
+    if (touchControls.stickActive) {
+        const dx = touchControls.stickCurrX - touchControls.stickBaseX;
+        const dy = touchControls.stickCurrY - touchControls.stickBaseY;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 10) {
+            fpsYaw -= (dx / 80) * rotSpd;
+            stickFwd = -dy / 80;
+        }
+    }
 
     // Direct orientation angle
     fpsUnit.attackAngle = -fpsYaw + Math.PI/2;
@@ -801,10 +825,12 @@ function updateFpsControls() {
     let fwd = 0;
     if (keysPressed['KeyW'] || keysPressed['ArrowUp']) fwd += 1;
     if (keysPressed['KeyS'] || keysPressed['ArrowDown']) fwd -= 1;
+    if (touchControls.stickActive) fwd += stickFwd;
 
     if (fwd !== 0) {
-        const dx = Math.cos(fpsYaw) * moveSpd * fwd;
-        const dz = Math.sin(fpsYaw) * moveSpd * fwd;
+        const moveStep = Math.min(Math.max(fwd, -1), 1) * moveSpd;
+        const dx = Math.cos(fpsYaw) * moveStep;
+        const dz = Math.sin(fpsYaw) * moveStep;
         const nx = fpsUnit.x + dx;
         const ny = fpsUnit.y + dz;
 
@@ -1099,7 +1125,7 @@ function drawHUD() {
         hudCtx.beginPath(); hudCtx.arc(cx, cy, 16, 0, Math.PI*2); hudCtx.stroke();
 
         // Exit FPS Button
-        const eX = hudCanvas.width / 2 - 60, eY = hudCanvas.height - 70, eW = 120, eH = 36;
+        const eX = hudCanvas.width / 2 - 60, eY = hudCanvas.height - 50, eW = 120, eH = 36;
         exitFpsBtnBounds = { x: eX, y: eY, w: eW, h: eH };
         hudCtx.fillStyle = 'rgba(200, 0, 0, 0.85)';
         hudCtx.strokeStyle = '#ffffff';
@@ -1112,10 +1138,41 @@ function drawHUD() {
         hudCtx.textBaseline = 'middle';
         hudCtx.fillText('EXIT FPS [ESC]', eX + eW/2, eY + eH/2);
 
+        // Touch Fire Button (Bottom Right)
+        const fR = 36, fX = hudCanvas.width - 70, fY = hudCanvas.height - 80;
+        fireBtnBounds = { x: fX - fR, y: fY - fR, w: fR*2, h: fR*2 };
+        hudCtx.fillStyle = 'rgba(255, 165, 0, 0.7)';
+        hudCtx.strokeStyle = '#ffffff';
+        hudCtx.lineWidth = 3;
+        hudCtx.beginPath(); hudCtx.arc(fX, fY, fR, 0, Math.PI*2); hudCtx.fill(); hudCtx.stroke();
+        hudCtx.fillStyle = '#ffffff';
+        hudCtx.font = 'bold 14px sans-serif';
+        hudCtx.fillText('FIRE', fX, fY);
+
+        // Touch Virtual Joystick Base/Stick (Bottom Left)
+        if (touchControls.stickActive) {
+            hudCtx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            hudCtx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
+            hudCtx.lineWidth = 2;
+            hudCtx.beginPath(); hudCtx.arc(touchControls.stickBaseX, touchControls.stickBaseY, 50, 0, Math.PI*2); hudCtx.fill(); hudCtx.stroke();
+
+            hudCtx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+            hudCtx.beginPath(); hudCtx.arc(touchControls.stickCurrX, touchControls.stickCurrY, 22, 0, Math.PI*2); hudCtx.fill();
+        } else {
+            // Idle hint for joystick
+            hudCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            hudCtx.lineWidth = 2;
+            hudCtx.beginPath(); hudCtx.arc(80, hudCanvas.height - 80, 45, 0, Math.PI*2); hudCtx.fill(); hudCtx.stroke();
+            hudCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            hudCtx.font = 'bold 10px sans-serif';
+            hudCtx.fillText('TOUCH JOYSTICK', 80, hudCanvas.height - 80);
+        }
+
         // Control hints
         hudCtx.fillStyle = 'rgba(0, 255, 0, 0.8)';
         hudCtx.font = 'bold 12px monospace';
-        hudCtx.fillText('WASD / ARROWS: MOVE/TURN | SPACE: FIRE', cx, cy + 36);
+        hudCtx.fillText('WASD / JOYSTICK / SWIPE TO DRIVE & AIM', cx, cy + 36);
     }
 
     if (spawnFlash>0) {
@@ -1861,8 +1918,25 @@ function handleInput(e, _, nx, ny, netPlayer) {
         }
 
         if (isFpsMode) {
-            // Left click in FPS mode fires weapon
-            if (fpsUnit) {
+            // Check touch fire button
+            if (fireBtnBounds && cx >= fireBtnBounds.x && cx <= fireBtnBounds.x + fireBtnBounds.w &&
+                cy >= fireBtnBounds.y && cy <= fireBtnBounds.y + fireBtnBounds.h) {
+                if (fpsUnit) {
+                    const targetPoint = {
+                        isBase: false,
+                        x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+                        y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+                        vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+                        vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+                        type: 'ground'
+                    };
+                    fpsUnit.attack(targetPoint);
+                }
+                return;
+            }
+
+            // Left click / tap in FPS mode fires weapon
+            if (fpsUnit && !e.touches) {
                 const targetPoint = {
                     isBase: false,
                     x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
@@ -1967,10 +2041,92 @@ function init3D() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
 
-    // Input
+    // Input & Touch Handling
     window.addEventListener('resize', onWindowResize, false);
     document.addEventListener('mousedown', handleInput);
-    document.addEventListener('touchstart', handleInput, {passive: false});
+    document.addEventListener('touchstart', e => {
+        if (isFpsMode) {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const tx = touch.clientX, ty = touch.clientY;
+
+                // Check Exit FPS button
+                if (exitFpsBtnBounds && tx >= exitFpsBtnBounds.x && tx <= exitFpsBtnBounds.x + exitFpsBtnBounds.w &&
+                    ty >= exitFpsBtnBounds.y && ty <= exitFpsBtnBounds.y + exitFpsBtnBounds.h) {
+                    exitFpsMode();
+                    return;
+                }
+
+                // Check Fire button
+                if (fireBtnBounds && tx >= fireBtnBounds.x && tx <= fireBtnBounds.x + fireBtnBounds.w &&
+                    ty >= fireBtnBounds.y && ty <= fireBtnBounds.y + fireBtnBounds.h) {
+                    if (fpsUnit) {
+                        const targetPoint = {
+                            isBase: false,
+                            x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+                            y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+                            vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+                            vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+                            type: 'ground'
+                        };
+                        fpsUnit.attack(targetPoint);
+                    }
+                    continue;
+                }
+
+                // Left side: Joystick
+                if (tx < window.innerWidth * 0.45 && !touchControls.stickActive) {
+                    touchControls.stickActive = true;
+                    touchControls.stickTouchId = touch.identifier;
+                    touchControls.stickBaseX = tx;
+                    touchControls.stickBaseY = ty;
+                    touchControls.stickCurrX = tx;
+                    touchControls.stickCurrY = ty;
+                }
+                // Right side: Swipe Look
+                else if (tx >= window.innerWidth * 0.45 && touchControls.lookTouchId === null) {
+                    touchControls.lookTouchId = touch.identifier;
+                    touchControls.lookLastX = tx;
+                    touchControls.lookLastY = ty;
+                }
+            }
+        } else {
+            handleInput(e);
+        }
+    }, {passive: false});
+
+    document.addEventListener('touchmove', e => {
+        if (isFpsMode) {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === touchControls.stickTouchId) {
+                    touchControls.stickCurrX = touch.clientX;
+                    touchControls.stickCurrY = touch.clientY;
+                } else if (touch.identifier === touchControls.lookTouchId) {
+                    const dx = touch.clientX - touchControls.lookLastX;
+                    fpsYaw -= dx * 0.008; // Touch swipe horizontal look rotation
+                    touchControls.lookLastX = touch.clientX;
+                    touchControls.lookLastY = touch.clientY;
+                }
+            }
+        }
+    }, {passive: false});
+
+    const resetTouch = e => {
+        if (isFpsMode) {
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === touchControls.stickTouchId) {
+                    touchControls.stickActive = false;
+                    touchControls.stickTouchId = null;
+                } else if (touch.identifier === touchControls.lookTouchId) {
+                    touchControls.lookTouchId = null;
+                }
+            }
+        }
+    };
+    document.addEventListener('touchend', resetTouch);
+    document.addEventListener('touchcancel', resetTouch);
 
     window.addEventListener('keydown', e => {
         keysPressed[e.code] = true;
