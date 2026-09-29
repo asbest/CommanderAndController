@@ -810,33 +810,49 @@ function updateFpsControls() {
     if (keysPressed['KeyA'] || keysPressed['ArrowLeft']) fpsYaw += rotSpd;
     if (keysPressed['KeyD'] || keysPressed['ArrowRight']) fpsYaw -= rotSpd;
 
-    // Touch joystick processing
-    let stickFwd = 0;
+    let moveDx = 0, moveDz = 0;
+
+    // Keyboard driving
+    let fwd = 0;
+    if (keysPressed['KeyW'] || keysPressed['ArrowUp']) fwd += 1;
+    if (keysPressed['KeyS'] || keysPressed['ArrowDown']) fwd -= 1;
+
+    if (fwd !== 0) {
+        const moveStep = Math.min(Math.max(fwd, -1), 1) * moveSpd;
+        moveDx += Math.cos(fpsYaw) * moveStep;
+        moveDz += Math.sin(fpsYaw) * moveStep;
+    }
+
+    // Touch joystick driving based on current camera angle (fpsYaw)
     if (touchControls.stickActive) {
         const maxR = 50;
         const normX = (touchControls.stickCurrX - touchControls.stickBaseX) / maxR;
         const normY = (touchControls.stickCurrY - touchControls.stickBaseY) / maxR;
+        const mag = Math.min(Math.hypot(normX, normY), 1.0);
 
-        // Steering / rotation based on joystick horizontal deflection
-        fpsYaw -= normX * rotSpd * 1.2;
-        // Forward / backward driving based on joystick vertical deflection
-        stickFwd = -normY;
+        if (mag > 0.15) {
+            // Angle relative to current view: 0 = forward, PI/2 = right, PI = backward, -PI/2 = left
+            const relAngle = Math.atan2(normX, -normY);
+            const moveWorldAngle = fpsYaw + relAngle;
+
+            const moveStep = mag * moveSpd;
+            moveDx += Math.cos(moveWorldAngle) * moveStep;
+            moveDz += Math.sin(moveWorldAngle) * moveStep;
+
+            // Turn fpsYaw smoothly toward the direction of joystick movement
+            let angleDiff = moveWorldAngle - fpsYaw;
+            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
+            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+            fpsYaw += angleDiff * 0.08;
+        }
     }
 
     // Direct orientation angle
     fpsUnit.attackAngle = -fpsYaw + Math.PI/2;
 
-    let fwd = 0;
-    if (keysPressed['KeyW'] || keysPressed['ArrowUp']) fwd += 1;
-    if (keysPressed['KeyS'] || keysPressed['ArrowDown']) fwd -= 1;
-    if (touchControls.stickActive) fwd += stickFwd;
-
-    if (fwd !== 0) {
-        const moveStep = Math.min(Math.max(fwd, -1), 1) * moveSpd;
-        const dx = Math.cos(fpsYaw) * moveStep;
-        const dz = Math.sin(fpsYaw) * moveStep;
-        const nx = fpsUnit.x + dx;
-        const ny = fpsUnit.y + dz;
+    if (moveDx !== 0 || moveDz !== 0) {
+        const nx = fpsUnit.x + moveDx;
+        const ny = fpsUnit.y + moveDz;
 
         // Grid bounds check
         if (nx >= 0 && nx < CONFIG.gridCols && ny >= 0 && ny < CONFIG.gridRows) {
