@@ -720,10 +720,17 @@ function runAiForPlayer(pId) {
             const padEnemies = enemyUnits.filter(u => controlPads.some(p => Math.round(u.x) === p.x && Math.round(u.y) === p.y));
             if (padEnemies.length > 0) {
                 pState.buildTarget = getBestCounter(padEnemies);
-            } else if (enemyUnits.length > 0) {
+            } else if (enemyUnits.length > 0 && Math.random() < 0.8) {
+                // 80% of time build smart hard counter to active enemies, 20% slight variation
                 pState.buildTarget = getBestCounter(enemyUnits);
             } else {
-                pState.buildTarget = ['rifle', 'buggy', 'missile', 'tank', 'orca'][Math.floor(Math.random()*5)];
+                // Strategic randomness: strategy-weighted unit choice
+                const strat = pState.strategy || 'balanced';
+                let pool = ['rifle', 'buggy', 'missile', 'tank', 'orca'];
+                if (strat === 'rush') pool = ['rifle', 'rifle', 'buggy', 'buggy', 'missile'];
+                else if (strat === 'heavy') pool = ['tank', 'tank', 'missile', 'buggy'];
+                else if (strat === 'air') pool = ['orca', 'orca', 'buggy', 'rifle'];
+                pState.buildTarget = pool[Math.floor(Math.random() * pool.length)];
             }
         }
 
@@ -1690,7 +1697,7 @@ function initJoinGame() { isAiVsAi=false; const id=document.getElementById('join
 function cancelLobby() { if(peer) peer.destroy(); document.getElementById('lobby-ui').classList.add('hidden'); document.getElementById('main-menu-panel').classList.remove('hidden'); }
 function setupNet() { conn.on('data', d => { if(isHost && d.t==='in') handleInput(null, null, d.x, d.y, -myPlayerId); if(isHost && d.t==='buy') buyUnit(d.k, -myPlayerId); if(!isHost) { if(d.t==='init') { GRID=d.g; myPlayerId=-d.h; startGameClient(); } if(d.type==='state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; n.hoverOffset=x.ho; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
 function startMP(host) { isMultiplayer=true; isHost=host; if(host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; playMusic(); }
+function startGame() { const strats=['rush','heavy','air','balanced']; aiStates['1']={ strategy: strats[Math.floor(Math.random()*4)], buildTarget: null }; aiStates['-1']={ strategy: strats[Math.floor(Math.random()*4)], buildTarget: null }; document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; playMusic(); }
 function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive=true; setupUIForSide(); SFX.init(); createTerrain(); playMusic(); }
 function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], funds=p===1?money:enemyMoney; if(funds >= d.cost) { const rStart=p===1?CONFIG.gridRows-1:0; let placed=false; for(let r of [rStart, p===1?CONFIG.gridRows-2:1]) { for(let c=0; c<CONFIG.gridCols; c++) { if(!units.some(u=>Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u=new Unit(k, p, c, r); units.push(u); if(p===myPlayerId) { selectedUnit=u; spawnFlash=10; } placed=true; break; } } if(placed) break; } if(!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'explode'); } }
 
