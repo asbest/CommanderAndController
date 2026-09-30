@@ -40,13 +40,15 @@
         .missile-timer { width: 160px; height: 4px; background: #111; border: 1px solid #444; border-radius: 2px; overflow: hidden; position: relative; }
         #missile-fill { height: 100%; width: 0%; transition: width 0.1s linear; background: #fff; box-shadow: 0 0 10px #fff; }
 
-        #pause-btn { 
+        #fps-btn, #pause-btn {
             background: rgba(0, 255, 0, 0.1); color: #00ff00; border: 1px solid #00ff00;
             padding: 6px 14px; font-size: 12px; font-weight: 700; letter-spacing: 1px;
             cursor: pointer; border-radius: 4px; transition: all 0.2s; 
             text-shadow: 0 0 5px rgba(0,255,0,0.5);
         }
-        #pause-btn:hover { background: rgba(0, 255, 0, 0.3); box-shadow: 0 0 10px rgba(0,255,0,0.4); }
+        #fps-btn:hover, #pause-btn:hover { background: rgba(0, 255, 0, 0.3); box-shadow: 0 0 10px rgba(0,255,0,0.4); }
+        #fps-btn.active { background: rgba(0, 255, 0, 0.6); color: #fff; box-shadow: 0 0 15px rgba(0,255,0,0.8); }
+        #fps-btn.disabled { opacity: 0.4; cursor: not-allowed; border-color: #444; color: #888; }
 
         .resource-display { 
             position: absolute; bottom: 130px; left: 20px; font-size: 32px;
@@ -171,6 +173,7 @@
                     <span class="hp-label" id="right-hp-label"></span>
                     <div id="right-hp" class="hp-bar-container"><div class="hp-bar-fill"><span class="hp-bar-text"></span></div></div>
                 </div>
+                <button id="fps-btn" onclick="toggleFpsModeFromHeader()">👁️ FPS</button>
                 <button id="pause-btn" onclick="togglePause()">PAUSE</button>
             </div>
         </div>
@@ -212,13 +215,14 @@
             <div class="menu-group">
                 <div class="group-label">Solo Operations</div>
                 <button class="btn-large" onclick="initSinglePlayer()">Single Player</button>
+                <button class="btn-large secondary" style="margin-top: 8px;" onclick="initAiVsAi()">AI vs AI (Spectate)</button>
             </div>
 
             <div class="menu-group">
                 <div class="group-label">Multiplayer Network</div>
                 <button class="btn-large secondary" onclick="initHostGame()">Host Match</button>
                 <div class="input-row" style="margin-top: 5px;">
-                    <input type="text" id="join-id-input" class="input-box" placeholder="Lobby ID">
+                    <input type="text" id="join-id-input" class="input-box" placeholder="Lobby ID" maxlength="6" style="text-transform: uppercase;">
                     <button class="btn-large secondary" style="width: auto; padding: 0 20px;" onclick="initJoinGame()">Join</button>
                 </div>
             </div>
@@ -256,21 +260,36 @@ const CONFIG = { gridCols: 15, gridRows: 21, tileSize: 0, gridOffsetX: 0, gridOf
 
 // Refined Balance aligned with C&C Rivals Rock-Paper-Scissors Dynamics
 const DB = {
-    rifle: { n:'Rifle Squad', cost:50, hp:75, dmg:14, spd:0.0085, rng:1.5, cd:35, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.2, air: 0.1, building: 0.5, missile: 1.5 } },
+    rifle: { n:'Rifle Squad', cost:50, hp:75, dmg:14, spd:0.0085, rng:1.0, cd:35, icon:'🏃', type:'infantry', proj:'bullet', scale: 0.2, mods: { infantry: 1.0, vehicle: 0.2, air: 0.1, building: 0.5, missile: 1.5 } },
     missile: { n:'Missile Squad', cost:100, hp:85, dmg:45, spd:0.007, rng:3.5, cd:80, icon:'🚀', type:'infantry', proj:'missile', scale: 0.35, mods: { infantry: 0.4, vehicle: 2.2, air: 4.5, building: 2.0 } },
-    buggy: { n:'Cyber Buggy', cost:150, hp:140, dmg:16, spd:0.013, rng:2.5, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.5, vehicle: 0.3, air: 2.0, building: 0.5 } },
-    tank: { n:'Storm Tank', cost:250, hp:400, dmg:70, spd:0.0055, rng:2.0, cd:90, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.8, air: 0.0, building: 1.5 } },
-    orca: { n:'Gunship', cost:350, hp:150, dmg:65, spd:0.011, rng:2.5, cd:100, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 3.0, missile: 0.1, air: 1.0, building: 2.5 } },
+    buggy: { n:'Cyber Buggy', cost:150, hp:140, dmg:16, spd:0.013, rng:1.0, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.5, vehicle: 0.3, air: 2.0, building: 0.5 } },
+    tank: { n:'Storm Tank', cost:250, hp:400, dmg:70, spd:0.0055, rng:1.0, cd:90, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.8, air: 0.0, building: 1.5 } },
+    orca: { n:'Gunship', cost:350, hp:150, dmg:65, spd:0.011, rng:2.0, cd:100, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 3.0, missile: 0.1, air: 1.0, building: 2.5 } },
     harv: { n:'Harvester', cost:200, hp:450, dmg:0, spd:0.004, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
 };
 
 const baseCoordinates = { '1': {x: Math.floor(CONFIG.gridCols/2), y: CONFIG.gridRows - 1}, '-1': {x: Math.floor(CONFIG.gridCols/2), y: 0} };
 
 let canvas, ctx, hudCanvas, hudCtx, bgCanvas; // canvas/ctx for 3D is managed by Three.js, but we keep var names for compatibility if needed or refactoring
-let gameActive = false, isPaused = false, isMultiplayer = false, isHost = false, myPlayerId = 1, aiPlayerId = -1;
+let gameActive = false, isPaused = false, isMultiplayer = false, isHost = false, isAiVsAi = false, myPlayerId = 1, aiPlayerId = -1;
 let money = 0, enemyMoney = 0, units = [], particles = [], debris = [], projectiles = [], GRID = [];
 let selectedUnit = null, missileVal = 0, bases = { p: 2000, e: 2000 }, lastFrameTime = 0, spawnFlash = 0, mushroomCloud = null, aiTick = 0;
 let peer = null, conn = null;
+
+// FPS MODE GLOBALS
+let isFpsMode = false, fpsUnit = null, fpsPitch = 0, fpsYaw = 0, fpsBtnBounds = null, exitFpsBtnBounds = null, fireBtnBounds = null;
+const keysPressed = {};
+const touchControls = {
+    stickActive: false,
+    stickTouchId: null,
+    stickBaseX: 0,
+    stickBaseY: 0,
+    stickCurrX: 0,
+    stickCurrY: 0,
+    lookTouchId: null,
+    lookLastX: 0,
+    lookLastY: 0
+};
 
 // THREE.JS GLOBALS
 let scene, camera, renderer, raycaster, mouse, groundPlane;
@@ -282,7 +301,7 @@ const POOL = { proj: [], part: [] };
 const GEOM = {};
 const MATS = {};
 
-const aiState = { strategy: 'hold', buildTarget: null };
+const aiStates = { '1': { strategy: 'hold', buildTarget: null }, '-1': { strategy: 'hold', buildTarget: null } };
 
 // --- AUDIO ---
 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -409,16 +428,19 @@ class Unit {
         if (this.cd > 0) return;
         this.cd = this.cdMax;
         this.recoil = 5;
-        this.attackAngle = Math.atan2(t.y - this.y, t.x - this.x);
-        let m = (this.mods[t.key] !== undefined) ? this.mods[t.key] : (this.mods[t.type] || 1);
+        this.attackAngle = Math.atan2((t.vy !== undefined ? t.vy : t.y) - this.y, (t.vx !== undefined ? t.vx : t.x) - this.x);
+        let m = (t.key && this.mods[t.key] !== undefined) ? this.mods[t.key] : (this.mods[t.type] || 1);
+        const targetX = (t.vx !== undefined) ? t.vx : (t.x !== undefined ? t.x : this.x + Math.cos(this.attackAngle)*this.rng);
+        const targetY = (t.vy !== undefined) ? t.vy : (t.y !== undefined ? t.y : this.y + Math.sin(this.attackAngle)*this.rng);
+        const maxDist = (t.isBase || t.key) ? Math.hypot(targetX - this.vx, targetY - this.vy) : this.rng;
         if (this.proj === 'missile') {
             SFX.launch();
             addParticles(this.vx, this.vy, 5, 'flash');
-            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this, trailTimer: 0 });
+            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, ox: this.vx, oy: this.vy, maxDist: maxDist, tar: t, tx: targetX, ty: targetY, dmg: this.dmg * m, o: this.owner, s: 0.1, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this, trailTimer: 0 });
         } else {
             if (this.key === 'tank') SFX.tank(); else SFX.shoot();
             addParticles(this.vx + Math.cos(this.attackAngle)*0.4, this.vy + Math.sin(this.attackAngle)*0.4, 3, 'flash');
-            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: 0.15, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
+            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, ox: this.vx, oy: this.vy, maxDist: maxDist, tar: t, tx: targetX, ty: targetY, dmg: this.dmg * m, o: this.owner, s: 0.2, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
         }
     }
     takeDamage(a, attacker) { 
@@ -696,85 +718,287 @@ function getBestCounter(enemyUnits) {
     return 'tank';
 }
 
+function runAiForPlayer(pId) {
+    const pState = aiStates[pId];
+    if (!pState) return;
+    const aiFunds = pId === 1 ? money : enemyMoney;
+    const myUnits = units.filter(u => u.owner === pId), enemyUnits = units.filter(u => u.owner !== pId);
+    const baseCoord = baseCoordinates[pId], enemyBaseCoord = baseCoordinates[pId * -1];
+
+    if (isBaseUnderAttack(pId)) {
+        const threat = enemyUnits.find(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8) || {x:baseCoord.x, y:baseCoord.y};
+        myUnits.forEach(u => { if (!u.harvest && u.state !== 'move') u.setPath(threat.x, threat.y); });
+    } else {
+        // Harvester priority
+        const harvesters = myUnits.filter(u => u.harvest);
+        if (harvesters.length < 1 && (!pState.buildTarget || pState.buildTarget !== 'harv')) {
+            pState.buildTarget = 'harv';
+        }
+
+        // Dynamic Counter-Build Target Selection
+        if (!pState.buildTarget) {
+            // Analyze pad threats first
+            const padEnemies = enemyUnits.filter(u => controlPads.some(p => Math.round(u.x) === p.x && Math.round(u.y) === p.y));
+            if (padEnemies.length > 0) {
+                pState.buildTarget = getBestCounter(padEnemies);
+            } else if (enemyUnits.length > 0 && Math.random() < 0.8) {
+                // 80% of time build smart hard counter to active enemies, 20% slight variation
+                pState.buildTarget = getBestCounter(enemyUnits);
+            } else {
+                // Strategic randomness: strategy-weighted unit choice
+                const strat = pState.strategy || 'balanced';
+                let pool = ['rifle', 'buggy', 'missile', 'tank', 'orca'];
+                if (strat === 'rush') pool = ['rifle', 'rifle', 'buggy', 'buggy', 'missile'];
+                else if (strat === 'heavy') pool = ['tank', 'tank', 'missile', 'buggy'];
+                else if (strat === 'air') pool = ['orca', 'orca', 'buggy', 'rifle'];
+                pState.buildTarget = pool[Math.floor(Math.random() * pool.length)];
+            }
+        }
+
+        // Execute Buy
+        if (pState.buildTarget && aiFunds >= DB[pState.buildTarget].cost) {
+            buyUnit(pState.buildTarget, pId);
+            pState.buildTarget = null;
+        }
+
+        // Tactical Movement & Pad Control
+        const fighters = myUnits.filter(u => !u.harvest);
+        const claimedFighters = new Set();
+
+        // High priority: Send fighters to unowned/enemy-owned pads first
+        const sortedPads = [...controlPads].sort((a, b) => {
+            const score = p => (p.owner === pId ? 2 : (p.owner === 0 ? 1 : 0));
+            return score(a) - score(b);
+        });
+
+        sortedPads.forEach(pad => {
+            let closest = null, minD = Infinity;
+            fighters.forEach(u => {
+                if (!claimedFighters.has(u)) {
+                    const d = Math.hypot(u.x - pad.x, u.y - pad.y);
+                    if (d < minD) { minD = d; closest = u; }
+                }
+            });
+            if (closest) {
+                claimedFighters.add(closest);
+                if (Math.hypot(closest.x - pad.x, closest.y - pad.y) > 0.2) {
+                    closest.setPath(pad.x, pad.y);
+                }
+            }
+        });
+
+        // Reserve fighters engage nearest enemy or push base
+        fighters.forEach(u => {
+            if (!claimedFighters.has(u) && u.state === 'idle') {
+                if (u.findTarget()) return;
+                let nearest = null, minD = Infinity;
+                enemyUnits.forEach(e => { const d = Math.hypot(u.x - e.x, u.y - e.y); if (d < minD) { minD = d; nearest = e; } });
+                const dBase = Math.hypot(u.x - enemyBaseCoord.x, u.y - enemyBaseCoord.y);
+                u.setPath((dBase < minD || !nearest) ? enemyBaseCoord.x : nearest.x, (dBase < minD || !nearest) ? enemyBaseCoord.y : nearest.y);
+            }
+        });
+    }
+}
+
+function updateFpsControls() {
+    if (!isFpsMode || !fpsUnit || !units.includes(fpsUnit) || fpsUnit.hp <= 0) {
+        if (isFpsMode) exitFpsMode();
+        return;
+    }
+
+    const moveSpd = fpsUnit.spd * 1.5;
+    const rotSpd = 0.025;
+
+    // Keyboard rotation
+    if (keysPressed['KeyA'] || keysPressed['ArrowLeft']) fpsYaw += rotSpd;
+    if (keysPressed['KeyD'] || keysPressed['ArrowRight']) fpsYaw -= rotSpd;
+
+    let moveDx = 0, moveDz = 0;
+
+    // Keyboard driving
+    let fwd = 0;
+    if (keysPressed['KeyW'] || keysPressed['ArrowUp']) fwd += 1;
+    if (keysPressed['KeyS'] || keysPressed['ArrowDown']) fwd -= 1;
+
+    if (fwd !== 0) {
+        const moveStep = Math.min(Math.max(fwd, -1), 1) * moveSpd;
+        moveDx += Math.cos(fpsYaw) * moveStep;
+        moveDz += Math.sin(fpsYaw) * moveStep;
+    }
+
+    // Touch joystick driving (forward and backward only)
+    if (touchControls.stickActive) {
+        const maxR = 50;
+        const normY = (touchControls.stickCurrY - touchControls.stickBaseY) / maxR;
+        const stickFwd = -normY; // Positive = forward, Negative = backward
+
+        if (Math.abs(stickFwd) > 0.1) {
+            const moveStep = Math.min(Math.max(stickFwd, -1), 1) * moveSpd;
+            moveDx += Math.cos(fpsYaw) * moveStep;
+            moveDz += Math.sin(fpsYaw) * moveStep;
+        }
+    }
+
+    // Direct orientation angle
+    fpsUnit.attackAngle = -fpsYaw + Math.PI/2;
+
+    if (moveDx !== 0 || moveDz !== 0) {
+        const nx = fpsUnit.x + moveDx;
+        const ny = fpsUnit.y + moveDz;
+
+        // Grid bounds check
+        if (nx >= 0 && nx < CONFIG.gridCols && ny >= 0 && ny < CONFIG.gridRows) {
+            if (GRID[Math.round(ny)] && GRID[Math.round(ny)][Math.round(nx)] !== 1 || fpsUnit.type === 'air') {
+                fpsUnit.x = nx;
+                fpsUnit.y = ny;
+                fpsUnit.vx = nx;
+                fpsUnit.vy = ny;
+                fpsUnit.path = [];
+                fpsUnit.state = 'idle';
+            }
+        }
+    }
+
+    if (keysPressed['Space']) {
+        fireFpsWeapon();
+    }
+
+    // Position 3D Camera for FPS (placed just in front of the vehicle)
+    const offset = 3.5;
+    const ux = fpsUnit.vx * TILE_SIZE_3D + TILE_SIZE_3D/2 + Math.cos(fpsYaw) * offset;
+    const uy = fpsUnit.type === 'air' ? 8 : 2.8;
+    const uz = fpsUnit.vy * TILE_SIZE_3D + TILE_SIZE_3D/2 + Math.sin(fpsYaw) * offset;
+
+    camera.up.set(0, 1, 0);
+    camera.position.set(ux, uy, uz);
+    const lookDist = 50;
+    const lx = ux + Math.cos(fpsYaw) * Math.cos(fpsPitch) * lookDist;
+    const ly = uy + Math.sin(fpsPitch) * lookDist;
+    const lz = uz + Math.sin(fpsYaw) * Math.cos(fpsPitch) * lookDist;
+    camera.lookAt(lx, ly, lz);
+}
+
+function fireFpsWeapon() {
+    if (!fpsUnit || fpsUnit.hp <= 0) return;
+    let bestTarget = null;
+    let minDist = fpsUnit.rng;
+
+    // Search for enemy units in view cone within fpsUnit.rng
+    units.forEach(u => {
+        if (u.owner !== fpsUnit.owner && u.hp > 0) {
+            const dx = u.vx - fpsUnit.vx;
+            const dy = u.vy - fpsUnit.vy;
+            const dist = Math.hypot(dx, dy);
+            if (dist <= minDist) {
+                const angleToUnit = Math.atan2(dy, dx);
+                let diff = angleToUnit - fpsYaw;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                if (Math.abs(diff) < 0.5) { // Aim cone ~30 deg
+                    minDist = dist;
+                    bestTarget = u;
+                }
+            }
+        }
+    });
+
+    // Search for enemy base in view cone if no unit matched
+    if (!bestTarget) {
+        const eb = baseCoordinates[fpsUnit.owner * -1];
+        const dx = eb.x - fpsUnit.vx;
+        const dy = eb.y - fpsUnit.vy;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= minDist) {
+            const angleToBase = Math.atan2(dy, dx);
+            let diff = angleToBase - fpsYaw;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            if (Math.abs(diff) < 0.5) {
+                bestTarget = { isBase: true, x: eb.x, y: eb.y, vx: eb.x, vy: eb.y, owner: fpsUnit.owner * -1, type: 'building' };
+            }
+        }
+    }
+
+    if (!bestTarget) {
+        const fireRng = fpsUnit.rng;
+        bestTarget = {
+            isBase: false,
+            x: fpsUnit.x + Math.cos(fpsYaw) * fireRng,
+            y: fpsUnit.y + Math.sin(fpsYaw) * fireRng,
+            vx: fpsUnit.vx + Math.cos(fpsYaw) * fireRng,
+            vy: fpsUnit.vy + Math.sin(fpsYaw) * fireRng,
+            type: 'ground'
+        };
+    }
+
+    fpsUnit.attack(bestTarget);
+}
+
+function toggleFpsModeFromHeader() {
+    if (isFpsMode) {
+        exitFpsMode();
+    } else if (selectedUnit && selectedUnit.owner === myPlayerId && selectedUnit.hp > 0) {
+        enterFpsMode(selectedUnit);
+    }
+}
+
+function updateFpsBtnUI() {
+    const btn = document.getElementById('fps-btn');
+    if (!btn) return;
+    if (isFpsMode) {
+        btn.classList.add('active');
+        btn.classList.remove('disabled');
+        btn.innerText = '👁️ EXIT FPS';
+    } else {
+        btn.classList.remove('active');
+        if (selectedUnit && selectedUnit.owner === myPlayerId && selectedUnit.hp > 0) {
+            btn.classList.remove('disabled');
+            btn.innerText = '👁️ FPS';
+        } else {
+            btn.classList.add('disabled');
+            btn.innerText = '👁️ FPS';
+        }
+    }
+}
+
+function enterFpsMode(unit) {
+    if (!unit) return;
+    isFpsMode = true;
+    fpsUnit = unit;
+    fpsYaw = unit.attackAngle ? (-unit.attackAngle + Math.PI/2) : -Math.PI/2;
+    fpsPitch = 0;
+    document.getElementById('build-menu').style.display = 'none';
+    updateFpsBtnUI();
+}
+
+function exitFpsMode() {
+    isFpsMode = false;
+    fpsUnit = null;
+    fpsPitch = 0;
+    if (!isAiVsAi) document.getElementById('build-menu').style.display = 'flex';
+    updateFpsBtnUI();
+    onWindowResize(); // Restore top-down camera view
+}
+
 function loop(ts) {
     const dt = ts - lastFrameTime; lastFrameTime = ts;
     try {
         if (gameActive && !isPaused) {
+            if (isFpsMode) {
+                updateFpsControls();
+            }
             if (isHost) {
                 if (ts % 1000 < 20) { let i1=5, i2=5; units.forEach(u => { if (u.state==='harvest') { if (u.owner===1) i1+=6; else i2+=6; } }); money+=i1; enemyMoney+=i2; }
-                if (!isMultiplayer) {
+                if (isAiVsAi) {
+                    aiTick++;
+                    if (aiTick % 20 === 0) {
+                        runAiForPlayer(1);
+                        runAiForPlayer(-1);
+                    }
+                } else if (!isMultiplayer) {
                     aiTick++;
                     if (aiTick % 20 === 0) { // Faster AI decision cycle (every 20 ticks)
-                        const aiFunds = aiPlayerId === 1 ? money : enemyMoney;
-                        const myUnits = units.filter(u => u.owner === aiPlayerId), enemyUnits = units.filter(u => u.owner !== aiPlayerId);
-                        const baseCoord = baseCoordinates[aiPlayerId], enemyBaseCoord = baseCoordinates[aiPlayerId * -1];
-
-                        if (isBaseUnderAttack(aiPlayerId)) {
-                            const threat = enemyUnits.find(u => Math.hypot(u.x - baseCoord.x, u.y - baseCoord.y) < 8) || {x:baseCoord.x, y:baseCoord.y};
-                            myUnits.forEach(u => { if (!u.harvest && u.state !== 'move') u.setPath(threat.x, threat.y); });
-                        } else {
-                            // Harvester priority
-                            const harvesters = myUnits.filter(u => u.harvest);
-                            if (harvesters.length < 1 && (!aiState.buildTarget || aiState.buildTarget !== 'harv')) {
-                                aiState.buildTarget = 'harv';
-                            }
-
-                            // Dynamic Counter-Build Target Selection
-                            if (!aiState.buildTarget) {
-                                // Analyze pad threats first
-                                const padEnemies = enemyUnits.filter(u => controlPads.some(p => Math.round(u.x) === p.x && Math.round(u.y) === p.y));
-                                if (padEnemies.length > 0) {
-                                    aiState.buildTarget = getBestCounter(padEnemies);
-                                } else if (enemyUnits.length > 0) {
-                                    aiState.buildTarget = getBestCounter(enemyUnits);
-                                } else {
-                                    aiState.buildTarget = ['rifle', 'buggy', 'missile', 'tank', 'orca'][Math.floor(Math.random()*5)];
-                                }
-                            }
-
-                            // Execute Buy
-                            if (aiState.buildTarget && aiFunds >= DB[aiState.buildTarget].cost) {
-                                buyUnit(aiState.buildTarget, aiPlayerId);
-                                aiState.buildTarget = null;
-                            }
-
-                            // Tactical Movement & Pad Control
-                            const fighters = myUnits.filter(u => !u.harvest);
-                            const claimedFighters = new Set();
-
-                            // High priority: Send fighters to unowned/enemy-owned pads first
-                            const sortedPads = [...controlPads].sort((a, b) => {
-                                const score = p => (p.owner === aiPlayerId ? 2 : (p.owner === 0 ? 1 : 0));
-                                return score(a) - score(b);
-                            });
-
-                            sortedPads.forEach(pad => {
-                                let closest = null, minD = Infinity;
-                                fighters.forEach(u => {
-                                    if (!claimedFighters.has(u)) {
-                                        const d = Math.hypot(u.x - pad.x, u.y - pad.y);
-                                        if (d < minD) { minD = d; closest = u; }
-                                    }
-                                });
-                                if (closest) {
-                                    claimedFighters.add(closest);
-                                    if (Math.hypot(closest.x - pad.x, closest.y - pad.y) > 0.2) {
-                                        closest.setPath(pad.x, pad.y);
-                                    }
-                                }
-                            });
-
-                            // Reserve fighters engage nearest enemy or push base
-                            fighters.forEach(u => {
-                                if (!claimedFighters.has(u) && u.state === 'idle') {
-                                    if (u.findTarget()) return;
-                                    let nearest = null, minD = Infinity;
-                                    enemyUnits.forEach(e => { const d = Math.hypot(u.x - e.x, u.y - e.y); if (d < minD) { minD = d; nearest = e; } });
-                                    const dBase = Math.hypot(u.x - enemyBaseCoord.x, u.y - enemyBaseCoord.y);
-                                    u.setPath((dBase < minD || !nearest) ? enemyBaseCoord.x : nearest.x, (dBase < minD || !nearest) ? enemyBaseCoord.y : nearest.y);
-                                }
-                            });
-                        }
+                        runAiForPlayer(aiPlayerId);
                     }
                 }
                 // Update Control Pads ownership & visual state
@@ -837,19 +1061,59 @@ function loop(ts) {
                         return true;
                     }
                     const targetAlive = p.tar && (p.tar.isBase || units.includes(p.tar));
-                    if (p.t === 'missile') {
-                        if (targetAlive) { p.tx = p.tar.vx; p.ty = p.tar.vy; }
+                    if (p.t === 'missile' || p.t === 'bullet') {
+                        if (targetAlive) { p.tx = (p.tar.vx !== undefined ? p.tar.vx : p.tar.x); p.ty = (p.tar.vy !== undefined ? p.tar.vy : p.tar.y); }
                         const d = Math.hypot(p.tx - p.x, p.ty - p.y);
-                        if (d < p.s) { if (targetAlive) { if (p.tar.isBase) { const k = p.o===1?'e':'p'; bases[k] = Math.max(0, bases[k]-p.dmg); updateHP(); } else p.tar.takeDamage(p.dmg, p.attacker); } SFX.explode(); addParticles(p.x, p.y, 5, 'explode'); return false; }
-                        p.x += (p.tx - p.x) / d * p.s; p.y += (p.ty - p.y) / d * p.s; p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
-                        p.trailTimer++; if(p.trailTimer%3===0) addParticles(p.x, p.y, 1, 'smoke');
-                        return true;
-                    }
-                    if (p.t === 'bullet') {
-                        if (!targetAlive) return false;
-                        const tx = p.tar.vx, ty = p.tar.vy, d = Math.hypot(tx - p.x, ty - p.y);
-                        if (d < p.s) { if (targetAlive) { if (p.tar.isBase) { const k = p.o===1?'e':'p'; bases[k] = Math.max(0, bases[k]-p.dmg); updateHP(); } else p.tar.takeDamage(p.dmg, p.attacker); } return false; }
-                        p.x += (tx - p.x) / d * p.s; p.y += (ty - p.y) / d * p.s; p.angle = Math.atan2(ty - p.y, tx - p.x);
+
+                        // Proximity hit detection against any enemy unit
+                        let hitUnit = null;
+                        for (let u of units) {
+                            if (u.owner !== p.o && u.hp > 0 && Math.hypot(u.vx - p.x, u.vy - p.y) < 0.8) {
+                                hitUnit = u;
+                                break;
+                            }
+                        }
+
+                        if (hitUnit) {
+                            let m = (p.attacker && hitUnit.key && p.attacker.mods[hitUnit.key] !== undefined) ? p.attacker.mods[hitUnit.key] : ((p.attacker && p.attacker.mods[hitUnit.type]) || 1);
+                            hitUnit.takeDamage((p.dmg || 15) * m, p.attacker);
+                            if (p.t === 'missile') SFX.explode();
+                            addParticles(p.x, p.y, 4, p.t === 'missile' ? 'explode' : 'spark');
+                            return false;
+                        }
+
+                        if (d < p.s || d < 0.1) {
+                            if (targetAlive) {
+                                if (p.tar.isBase) {
+                                    const k = p.o === 1 ? 'e' : 'p';
+                                    bases[k] = Math.max(0, bases[k] - (p.dmg || 15));
+                                    updateHP();
+                                } else {
+                                    p.tar.takeDamage(p.dmg || 15, p.attacker);
+                                }
+                            }
+                            if (p.t === 'missile') SFX.explode();
+                            addParticles(p.x, p.y, 4, p.t === 'missile' ? 'explode' : 'spark');
+                            return false;
+                        }
+
+                        p.x += (p.tx - p.x) / d * p.s;
+                        p.y += (p.ty - p.y) / d * p.s;
+                        p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+
+                        // Check maximum flight distance limit
+                        if (p.ox !== undefined && p.oy !== undefined && p.maxDist !== undefined) {
+                            if (Math.hypot(p.x - p.ox, p.y - p.oy) >= p.maxDist) {
+                                if (p.t === 'missile') SFX.explode();
+                                addParticles(p.x, p.y, 3, p.t === 'missile' ? 'explode' : 'spark');
+                                return false;
+                            }
+                        }
+
+                        if (p.t === 'missile') {
+                            p.trailTimer = (p.trailTimer || 0) + 1;
+                            if (p.trailTimer % 3 === 0) addParticles(p.x, p.y, 1, 'smoke');
+                        }
                         return true;
                     }
                     return false;
@@ -859,14 +1123,31 @@ function loop(ts) {
             particles = particles.filter(p => { p.l--; p.x+=p.vx; p.y+=p.vy; return p.l>0; });
             if (mushroomCloud) { mushroomCloud.update(); if (mushroomCloud.life <= 0) mushroomCloud = null; }
             if (gameActive) {
-                const php = myPlayerId===1?bases.p:bases.e, ehp=myPlayerId===1?bases.e:bases.p;
-                if (php <= 0) endGame('DEFEAT'); else if (ehp <= 0) endGame('VICTORY');
+                if (isAiVsAi) {
+                    if (bases.p <= 0) endGame('RED AI VICTORY');
+                    else if (bases.e <= 0) endGame('GREEN AI VICTORY');
+                } else {
+                    const php = myPlayerId===1?bases.p:bases.e, ehp=myPlayerId===1?bases.e:bases.p;
+                    if (php <= 0) endGame('DEFEAT'); else if (ehp <= 0) endGame('VICTORY');
+                }
             }
             if (spawnFlash > 0) spawnFlash--;
-            const myFunds = myPlayerId === 1 ? money : enemyMoney;
-            document.getElementById('money-display').innerText = Math.floor(myFunds);
-            document.querySelectorAll('.card').forEach(b => { if (myFunds < b.dataset.cost) b.classList.add('disabled'); else b.classList.remove('disabled'); });
+            if (isAiVsAi || isFpsMode) {
+                if (isAiVsAi) {
+                    document.getElementById('money-display').innerText = `G:${Math.floor(money)} | R:${Math.floor(enemyMoney)}`;
+                } else {
+                    const myFunds = myPlayerId === 1 ? money : enemyMoney;
+                    document.getElementById('money-display').innerText = Math.floor(myFunds);
+                }
+                document.getElementById('build-menu').style.display = 'none';
+            } else {
+                document.getElementById('build-menu').style.display = 'flex';
+                const myFunds = myPlayerId === 1 ? money : enemyMoney;
+                document.getElementById('money-display').innerText = Math.floor(myFunds);
+                document.querySelectorAll('.card').forEach(b => { if (myFunds < b.dataset.cost) b.classList.add('disabled'); else b.classList.remove('disabled'); });
+            }
         }
+        updateFpsBtnUI();
         update3D();
         renderer.render(scene, camera);
         drawHUD();
@@ -877,6 +1158,7 @@ function loop(ts) {
 function drawHUD() {
     if (!hudCanvas) return;
     hudCtx.clearRect(0,0,hudCanvas.width, hudCanvas.height);
+    fpsBtnBounds = null; exitFpsBtnBounds = null;
 
     // Project 3D points to 2D
     const project = (x, y, z) => {
@@ -926,12 +1208,11 @@ function drawHUD() {
         const pos = project(x, 0, z);
         const top = project(x, 4, z); // Above unit
 
-        if (selectedUnit === u) {
+        if (selectedUnit === u && !isFpsMode) {
             hudCtx.strokeStyle = '#fff'; hudCtx.lineWidth = 1;
             hudCtx.beginPath(); hudCtx.arc(pos.x, pos.y, 20, 0, Math.PI*2); hudCtx.stroke();
+
             if (u.path.length) {
-                // Draw path in 2D overlay? Or 3D?
-                // Let's do 2D overlay for now
                 hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)'; hudCtx.setLineDash([4, 4]);
                 hudCtx.beginPath(); hudCtx.moveTo(pos.x, pos.y);
                 u.path.forEach(node => {
@@ -950,6 +1231,68 @@ function drawHUD() {
             hudCtx.fillRect(top.x - w/2, top.y, w * (u.hp/u.maxHp), 4);
         }
     });
+
+    if (isFpsMode) {
+        // Crosshair
+        const cx = hudCanvas.width / 2, cy = hudCanvas.height / 2;
+        hudCtx.strokeStyle = 'rgba(0, 255, 0, 0.8)';
+        hudCtx.lineWidth = 2;
+        hudCtx.beginPath();
+        hudCtx.moveTo(cx - 10, cy); hudCtx.lineTo(cx + 10, cy);
+        hudCtx.moveTo(cx, cy - 10); hudCtx.lineTo(cx, cy + 10);
+        hudCtx.stroke();
+        hudCtx.beginPath(); hudCtx.arc(cx, cy, 16, 0, Math.PI*2); hudCtx.stroke();
+
+        // Exit FPS Button
+        const eX = hudCanvas.width / 2 - 60, eY = hudCanvas.height - 50, eW = 120, eH = 36;
+        exitFpsBtnBounds = { x: eX, y: eY, w: eW, h: eH };
+        hudCtx.fillStyle = 'rgba(200, 0, 0, 0.85)';
+        hudCtx.strokeStyle = '#ffffff';
+        hudCtx.lineWidth = 2;
+        hudCtx.fillRect(eX, eY, eW, eH);
+        hudCtx.strokeRect(eX, eY, eW, eH);
+        hudCtx.fillStyle = '#ffffff';
+        hudCtx.font = 'bold 12px sans-serif';
+        hudCtx.textAlign = 'center';
+        hudCtx.textBaseline = 'middle';
+        hudCtx.fillText('EXIT FPS [ESC]', eX + eW/2, eY + eH/2);
+
+        // Touch Fire Button (Bottom Right)
+        const fR = 36, fX = hudCanvas.width - 70, fY = hudCanvas.height - 80;
+        fireBtnBounds = { x: fX - fR, y: fY - fR, w: fR*2, h: fR*2 };
+        hudCtx.fillStyle = 'rgba(255, 165, 0, 0.7)';
+        hudCtx.strokeStyle = '#ffffff';
+        hudCtx.lineWidth = 3;
+        hudCtx.beginPath(); hudCtx.arc(fX, fY, fR, 0, Math.PI*2); hudCtx.fill(); hudCtx.stroke();
+        hudCtx.fillStyle = '#ffffff';
+        hudCtx.font = 'bold 14px sans-serif';
+        hudCtx.fillText('FIRE', fX, fY);
+
+        // Touch Virtual Joystick Base/Stick (Bottom Left)
+        if (touchControls.stickActive) {
+            hudCtx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+            hudCtx.strokeStyle = 'rgba(0, 255, 0, 0.6)';
+            hudCtx.lineWidth = 2;
+            hudCtx.beginPath(); hudCtx.arc(touchControls.stickBaseX, touchControls.stickBaseY, 50, 0, Math.PI*2); hudCtx.fill(); hudCtx.stroke();
+
+            hudCtx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+            hudCtx.beginPath(); hudCtx.arc(touchControls.stickCurrX, touchControls.stickCurrY, 22, 0, Math.PI*2); hudCtx.fill();
+        } else {
+            // Idle hint for joystick
+            hudCtx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+            hudCtx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            hudCtx.lineWidth = 2;
+            hudCtx.beginPath(); hudCtx.arc(80, hudCanvas.height - 80, 45, 0, Math.PI*2); hudCtx.fill(); hudCtx.stroke();
+            hudCtx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            hudCtx.font = 'bold 10px sans-serif';
+            hudCtx.fillText('TOUCH JOYSTICK', 80, hudCanvas.height - 80);
+        }
+
+        // Control hints
+        hudCtx.fillStyle = 'rgba(0, 255, 0, 0.8)';
+        hudCtx.font = 'bold 12px monospace';
+        hudCtx.fillText('WASD / JOYSTICK / SWIPE TO DRIVE & AIM', cx, cy + 36);
+    }
 
     if (spawnFlash>0) {
         hudCtx.fillStyle = `rgba(0,255,0,${spawnFlash/20})`;
@@ -1653,18 +1996,61 @@ function drawUnitPath(u, ts) {
 }
 
 function addParticles(x, y, count, type) { for(let i=0; i<count; i++) { particles.push({ x:x+(Math.random()-0.5)*0.5, y:y+(Math.random()-0.5)*0.5, vx:(Math.random()-0.5)*0.05, vy:(Math.random()-0.5)*0.05, l:15, type:type }); } }
-function initSinglePlayer() { const rads=document.getElementsByName('playerSide'); for(let r of rads) if(r.checked) myPlayerId=parseInt(r.value); aiPlayerId=-myPlayerId; isMultiplayer=false; isHost=true; generateMap(); startGame(); }
-function initHostGame() { const rads=document.getElementsByName('playerSide'); for(let r of rads) if(r.checked) myPlayerId=parseInt(r.value); document.getElementById('main-menu-panel').classList.add('hidden'); document.getElementById('lobby-ui').classList.remove('hidden'); document.getElementById('lobby-status').innerHTML="Creating Room..."; peer=new Peer(); peer.on('open', id => document.getElementById('lobby-status').innerHTML = `ID: <strong style="color:#fff; user-select:text">${id}</strong>`); peer.on('connection', c => { conn=c; setupNet(); document.getElementById('lobby-status').innerHTML="Starting..."; setTimeout(() => startMP(true), 1000); }); }
-function initJoinGame() { const id=document.getElementById('join-id-input').value; if(!id) return; document.getElementById('main-menu-panel').classList.add('hidden'); document.getElementById('lobby-ui').classList.remove('hidden'); peer=new Peer(); peer.on('open', () => { conn=peer.connect(id); setupNet(); }); }
+function generateShortId() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let res = '';
+    for (let i = 0; i < 6; i++) res += chars.charAt(Math.floor(Math.random() * chars.length));
+    return res;
+}
+function initSinglePlayer() { isAiVsAi=false; const rads=document.getElementsByName('playerSide'); for(let r of rads) if(r.checked) myPlayerId=parseInt(r.value); aiPlayerId=-myPlayerId; isMultiplayer=false; isHost=true; generateMap(); startGame(); }
+function initAiVsAi() { isAiVsAi=true; isMultiplayer=false; isHost=true; myPlayerId=1; aiPlayerId=-1; generateMap(); startGame(); }
+function initHostGame() { isAiVsAi=false; const rads=document.getElementsByName('playerSide'); for(let r of rads) if(r.checked) myPlayerId=parseInt(r.value); document.getElementById('main-menu-panel').classList.add('hidden'); document.getElementById('lobby-ui').classList.remove('hidden'); document.getElementById('lobby-status').innerHTML="Creating Room..."; const shortId = generateShortId(); peer=new Peer(shortId); peer.on('open', id => document.getElementById('lobby-status').innerHTML = `ID: <strong style="color:#fff; user-select:text">${id}</strong>`); peer.on('connection', c => { conn=c; setupNet(); document.getElementById('lobby-status').innerHTML="Starting..."; setTimeout(() => startMP(true), 1000); }); }
+function initJoinGame() { isAiVsAi=false; const id=document.getElementById('join-id-input').value.trim().toUpperCase(); if(!id) return; document.getElementById('main-menu-panel').classList.add('hidden'); document.getElementById('lobby-ui').classList.remove('hidden'); peer=new Peer(); peer.on('open', () => { conn=peer.connect(id); setupNet(); }); }
 function cancelLobby() { if(peer) peer.destroy(); document.getElementById('lobby-ui').classList.add('hidden'); document.getElementById('main-menu-panel').classList.remove('hidden'); }
 function setupNet() { conn.on('data', d => { if(isHost && d.t==='in') handleInput(null, null, d.x, d.y, -myPlayerId); if(isHost && d.t==='buy') buyUnit(d.k, -myPlayerId); if(!isHost) { if(d.t==='init') { GRID=d.g; myPlayerId=-d.h; startGameClient(); } if(d.type==='state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; n.hoverOffset=x.ho; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
 function startMP(host) { isMultiplayer=true; isHost=host; if(host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() { document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; playMusic(); }
+function startGame() { const strats=['rush','heavy','air','balanced']; aiStates['1']={ strategy: strats[Math.floor(Math.random()*4)], buildTarget: null }; aiStates['-1']={ strategy: strats[Math.floor(Math.random()*4)], buildTarget: null }; document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; playMusic(); }
 function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive=true; setupUIForSide(); SFX.init(); createTerrain(); playMusic(); }
 function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], funds=p===1?money:enemyMoney; if(funds >= d.cost) { const rStart=p===1?CONFIG.gridRows-1:0; let placed=false; for(let r of [rStart, p===1?CONFIG.gridRows-2:1]) { for(let c=0; c<CONFIG.gridCols; c++) { if(!units.some(u=>Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u=new Unit(k, p, c, r); units.push(u); if(p===myPlayerId) { selectedUnit=u; spawnFlash=10; } placed=true; break; } } if(placed) break; } if(!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'explode'); } }
 
 function handleInput(e, _, nx, ny, netPlayer) {
     if (e) {
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+
+        // Check Exit FPS button click
+        if (isFpsMode && exitFpsBtnBounds) {
+            if (cx >= exitFpsBtnBounds.x && cx <= exitFpsBtnBounds.x + exitFpsBtnBounds.w &&
+                cy >= exitFpsBtnBounds.y && cy <= exitFpsBtnBounds.y + exitFpsBtnBounds.h) {
+                exitFpsMode();
+                return;
+            }
+        }
+
+        // Check FPS mode enter button click
+        if (!isFpsMode && fpsBtnBounds && selectedUnit) {
+            if (cx >= fpsBtnBounds.x && cx <= fpsBtnBounds.x + fpsBtnBounds.w &&
+                cy >= fpsBtnBounds.y && cy <= fpsBtnBounds.y + fpsBtnBounds.h) {
+                enterFpsMode(selectedUnit);
+                return;
+            }
+        }
+
+        if (isFpsMode) {
+            // Check touch fire button
+            if (fireBtnBounds && cx >= fireBtnBounds.x && cx <= fireBtnBounds.x + fireBtnBounds.w &&
+                cy >= fireBtnBounds.y && cy <= fireBtnBounds.y + fireBtnBounds.h) {
+                fireFpsWeapon();
+                return;
+            }
+
+            // Left click / tap in FPS mode fires weapon
+            if (!e.touches) {
+                fireFpsWeapon();
+            }
+            return;
+        }
+
         // Only handle input on the canvas
         if (e.target !== renderer.domElement) return;
         if (!groundPlane) return;
@@ -1673,8 +2059,6 @@ function handleInput(e, _, nx, ny, netPlayer) {
 
         // 3D Raycasting
         const rect = renderer.domElement.getBoundingClientRect();
-        const cx = e.touches ? e.touches[0].clientX : e.clientX;
-        const cy = e.touches ? e.touches[0].clientY : e.clientY;
 
         mouse.x = ((cx - rect.left) / rect.width) * 2 - 1;
         mouse.y = -((cy - rect.top) / rect.height) * 2 + 1;
@@ -1758,10 +2142,102 @@ function init3D() {
     raycaster = new THREE.Raycaster();
     mouse = new THREE.Vector2();
 
-    // Input
+    // Input & Touch Handling
     window.addEventListener('resize', onWindowResize, false);
     document.addEventListener('mousedown', handleInput);
-    document.addEventListener('touchstart', handleInput, {passive: false});
+    document.addEventListener('touchstart', e => {
+        if (isFpsMode) {
+            if (e.cancelable) e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const tx = touch.clientX, ty = touch.clientY;
+
+                // Check Exit FPS button
+                if (exitFpsBtnBounds && tx >= exitFpsBtnBounds.x && tx <= exitFpsBtnBounds.x + exitFpsBtnBounds.w &&
+                    ty >= exitFpsBtnBounds.y && ty <= exitFpsBtnBounds.y + exitFpsBtnBounds.h) {
+                    exitFpsMode();
+                    return;
+                }
+
+                // Check Fire button
+                if (fireBtnBounds && tx >= fireBtnBounds.x && tx <= fireBtnBounds.x + fireBtnBounds.w &&
+                    ty >= fireBtnBounds.y && ty <= fireBtnBounds.y + fireBtnBounds.h) {
+                    fireFpsWeapon();
+                    continue;
+                }
+
+                // Left side: Virtual Joystick
+                if (tx < window.innerWidth * 0.45 && !touchControls.stickActive) {
+                    touchControls.stickActive = true;
+                    touchControls.stickTouchId = touch.identifier;
+                    touchControls.stickBaseX = tx;
+                    touchControls.stickBaseY = ty;
+                    touchControls.stickCurrX = tx;
+                    touchControls.stickCurrY = ty;
+                }
+                // Right side: Swipe Look
+                else if (tx >= window.innerWidth * 0.45 && touchControls.lookTouchId === null) {
+                    touchControls.lookTouchId = touch.identifier;
+                    touchControls.lookLastX = tx;
+                    touchControls.lookLastY = ty;
+                }
+            }
+        } else {
+            handleInput(e);
+        }
+    }, {passive: false});
+
+    document.addEventListener('touchmove', e => {
+        if (isFpsMode) {
+            if (e.cancelable) e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === touchControls.stickTouchId) {
+                    const dy = touch.clientY - touchControls.stickBaseY;
+                    const maxR = 50;
+                    const clampedY = Math.min(Math.max(dy, -maxR), maxR);
+                    touchControls.stickCurrX = touchControls.stickBaseX; // Lock X axis
+                    touchControls.stickCurrY = touchControls.stickBaseY + clampedY;
+                } else if (touch.identifier === touchControls.lookTouchId) {
+                    const dx = touch.clientX - touchControls.lookLastX;
+                    const dy = touch.clientY - touchControls.lookLastY;
+                    fpsYaw += dx * 0.004; // Touch swipe horizontal look rotation (inverted)
+                    fpsPitch -= dy * 0.004; // Touch swipe vertical look rotation
+                    fpsPitch = Math.min(Math.max(fpsPitch, -Math.PI/3), Math.PI/3);
+                    touchControls.lookLastX = touch.clientX;
+                    touchControls.lookLastY = touch.clientY;
+                }
+            }
+        }
+    }, {passive: false});
+
+    const resetTouch = e => {
+        if (isFpsMode) {
+            if (e.cancelable) e.preventDefault();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                if (touch.identifier === touchControls.stickTouchId) {
+                    touchControls.stickActive = false;
+                    touchControls.stickTouchId = null;
+                } else if (touch.identifier === touchControls.lookTouchId) {
+                    touchControls.lookTouchId = null;
+                }
+            }
+        }
+    };
+    document.addEventListener('touchend', resetTouch, {passive: false});
+    document.addEventListener('touchcancel', resetTouch, {passive: false});
+
+    window.addEventListener('keydown', e => {
+        keysPressed[e.code] = true;
+        if (e.code === 'Escape' && isFpsMode) {
+            exitFpsMode();
+        }
+    });
+
+    window.addEventListener('keyup', e => {
+        keysPressed[e.code] = false;
+    });
 
     onWindowResize();
 }
