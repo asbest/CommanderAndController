@@ -332,8 +332,26 @@ function toggleMusic() {
     }
 }
 
+let lastEvaTimes = {};
 const SFX = {
     init: () => { try { if (!AudioContext) return; if (!audioCtx) audioCtx = new AudioContext(); if (audioCtx.state === 'suspended') audioCtx.resume().then(() => audioEnabled = true); else audioEnabled = true; } catch (e) { audioEnabled = false; } },
+    eva: (text, cooldownMs = 4000) => {
+        if (!('speechSynthesis' in window) || isPaused) return;
+        const now = Date.now();
+        if (lastEvaTimes[text] && (now - lastEvaTimes[text] < cooldownMs)) return;
+        lastEvaTimes[text] = now;
+        try {
+            window.speechSynthesis.cancel();
+            const utt = new SpeechSynthesisUtterance(text);
+            utt.rate = 1.05;
+            utt.pitch = 0.95;
+            utt.volume = 0.85;
+            const voices = window.speechSynthesis.getVoices();
+            const preferredVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Female') || v.name.includes('Zira') || v.name.includes('Samantha')));
+            if (preferredVoice) utt.voice = preferredVoice;
+            window.speechSynthesis.speak(utt);
+        } catch(e){}
+    },
     tone: (t, f1, f2, d, v1, v2) => { if (!audioEnabled || isPaused || !audioCtx) return; try { const o = audioCtx.createOscillator(), g = audioCtx.createGain(); o.connect(g); g.connect(audioCtx.destination); o.type = t; o.frequency.setValueAtTime(f1, audioCtx.currentTime); o.frequency.exponentialRampToValueAtTime(f2, audioCtx.currentTime+d); g.gain.setValueAtTime(v1, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(v2, audioCtx.currentTime+d); o.start(); o.stop(audioCtx.currentTime+d); } catch(e){} },
     shoot: () => SFX.tone('square', 400, 100, 0.1, 0.05, 0.001),
     tank: () => SFX.tone('sawtooth', 100, 20, 0.2, 0.1, 0.001),
@@ -587,46 +605,62 @@ function createTerrain() {
             const x = c * TILE_SIZE_3D + TILE_SIZE_3D / 2;
             const z = r * TILE_SIZE_3D + TILE_SIZE_3D / 2;
 
-            if (t === 1) { // Mountains (Realistic Rocky Crag)
+        if (t === 1) { // Mountains (Capped Terrain Crag)
                 const rockGroup = new THREE.Group();
                 const count = 3 + Math.floor(Math.random()*2);
                 const rockMat = new THREE.MeshStandardMaterial({ color: 0x2d3436, roughness: 0.9, metalness: 0.1, flatShading: true });
                 for (let i = 0; i < count; i++) {
-                    const radius = 2.5 + Math.random() * 2.5;
+                    const radius = 2.0 + Math.random() * 1.5;
                     const geo = new THREE.DodecahedronGeometry(radius, 1);
                     const mesh = new THREE.Mesh(geo, rockMat);
-                    mesh.position.set((Math.random()-0.5)*3, radius*0.7, (Math.random()-0.5)*3);
+                    mesh.position.set((Math.random()-0.5)*2.5, radius*0.4, (Math.random()-0.5)*2.5);
                     mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
-                    mesh.scale.set(1 + Math.random()*0.4, 1.2 + Math.random()*0.8, 1 + Math.random()*0.4);
+                    mesh.scale.set(1 + Math.random()*0.3, 0.9 + Math.random()*0.3, 1 + Math.random()*0.3);
                     mesh.castShadow = true; mesh.receiveShadow = true;
                     rockGroup.add(mesh);
                 }
                 rockGroup.position.set(x, 0, z);
                 terrainGroup.add(rockGroup);
-            } else if (t === 2) { // Tiberium Fields (Glowing Crystals)
+            } else if (t === 2) { // Tiberium Fields (Detailed Crystal Clusters)
                 const tibGroup = new THREE.Group();
-                const count = 5 + Math.floor(Math.random()*3);
-                const tibMat = new THREE.MeshStandardMaterial({
+                const count = 8 + Math.floor(Math.random()*5);
+                const tibMat = new THREE.MeshPhysicalMaterial({
                     color: 0x00ff66,
-                    emissive: 0x00aa33,
-                    emissiveIntensity: 0.8,
-                    roughness: 0.2,
-                    metalness: 0.1
+                    emissive: 0x00ff44,
+                    emissiveIntensity: 1.2,
+                    roughness: 0.1,
+                    metalness: 0.2,
+                    transmission: 0.6,
+                    transparent: true,
+                    opacity: 0.9,
+                    flatShading: true
                 });
                 for(let i=0; i<count; i++) {
-                    const h = 3 + Math.random() * 4;
-                    const geo = new THREE.CylinderGeometry(0.2, 0.8, h, 6);
+                    const h = 2.5 + Math.random() * 5.5;
+                    const radius = 0.3 + Math.random() * 0.7;
+                    const geo = new THREE.ConeGeometry(radius, h, 5);
                     const mesh = new THREE.Mesh(geo, tibMat);
-                    const ox = (Math.random()-0.5)*TILE_SIZE_3D*0.6;
-                    const oz = (Math.random()-0.5)*TILE_SIZE_3D*0.6;
+                    const ox = (Math.random()-0.5)*TILE_SIZE_3D*0.7;
+                    const oz = (Math.random()-0.5)*TILE_SIZE_3D*0.7;
                     mesh.position.set(ox, h/2, oz);
-                    mesh.rotation.x = (Math.random()-0.5)*0.6;
-                    mesh.rotation.z = (Math.random()-0.5)*0.6;
+                    mesh.rotation.x = (Math.random()-0.5)*0.8;
+                    mesh.rotation.y = Math.random()*Math.PI*2;
+                    mesh.rotation.z = (Math.random()-0.5)*0.8;
+                    mesh.castShadow = true;
                     tibGroup.add(mesh);
                 }
-                const tibLight = new THREE.PointLight(0x00ff66, 0.8, 15);
-                tibLight.position.set(0, 3, 0);
+                const tibLight = new THREE.PointLight(0x00ff66, 1.5, 20);
+                tibLight.position.set(0, 4, 0);
                 tibGroup.add(tibLight);
+
+                // Floating Tiberium Spore Particles
+                for(let p=0; p<6; p++) {
+                    const sporeGeo = new THREE.SphereGeometry(0.15, 6, 6);
+                    const sporeMat = new THREE.MeshBasicMaterial({ color: 0x00ff88, transparent: true, opacity: 0.7 });
+                    const spore = new THREE.Mesh(sporeGeo, sporeMat);
+                    spore.position.set((Math.random()-0.5)*TILE_SIZE_3D*0.8, 1.5 + Math.random()*4, (Math.random()-0.5)*TILE_SIZE_3D*0.8);
+                    tibGroup.add(spore);
+                }
 
                 tibGroup.position.set(x, 0, z);
                 terrainGroup.add(tibGroup);
@@ -693,7 +727,11 @@ function findNearestTile(x, y, typeId) {
 
 function isBaseUnderAttack(playerId) {
     const coord = baseCoordinates[playerId];
-    return units.some(u => u.owner !== playerId && Math.hypot(coord.x - u.x, coord.y - u.y) <= 6);
+    const underAttack = units.some(u => u.owner !== playerId && Math.hypot(coord.x - u.x, coord.y - u.y) <= 6);
+    if (underAttack && playerId === myPlayerId) {
+        SFX.eva('Warning: Our base is under attack!', 8000);
+    }
+    return underAttack;
 }
 
 function getBestCounter(enemyUnits) {
@@ -866,7 +904,7 @@ function updateFpsControls() {
     // Position 3D Camera for FPS (placed just in front of the vehicle)
     const offset = 3.5;
     const ux = fpsUnit.vx * TILE_SIZE_3D + TILE_SIZE_3D/2 + Math.cos(fpsYaw) * offset;
-    const uy = fpsUnit.type === 'air' ? 8 : 2.8;
+    const uy = fpsUnit.type === 'air' ? 20.5 : 2.8;
     const uz = fpsUnit.vy * TILE_SIZE_3D + TILE_SIZE_3D/2 + Math.sin(fpsYaw) * offset;
 
     camera.up.set(0, 1, 0);
@@ -1044,6 +1082,7 @@ function loop(ts) {
 
                     if (missileVal >= 100) {
                         missileVal = 0;
+                        SFX.eva('Warning: Nuclear missile launched!', 5000);
                         const winner = padsP1 > padsP2 ? 1 : (padsP2 > padsP1 ? -1 : (Math.random() < 0.5 ? 1 : -1));
                         const midX = Math.floor(CONFIG.gridCols/2) + 0.5;
                         const midY = Math.floor(CONFIG.gridRows/2) + 0.5;
@@ -1418,11 +1457,81 @@ function update3D() {
             mesh.rotation.y = -u.attackAngle + Math.PI/2;
         }
 
-        // Hover for air
+        const isMoving = u.state === 'move' && u.path.length > 0;
+        const now = Date.now();
+
+        // Hover & High-Altitude Flight Animations (Flies far above all mountain obstacles)
         if (u.type === 'air') {
-            mesh.position.y = 4 + (u.hoverOffset||0) * 2;
+            const hoverBob = Math.sin(now * 0.004) * 0.35;
+            mesh.position.y = 18.0 + hoverBob;
+
+            if (u.key === 'orca') {
+                const lR = mesh.getObjectByName('lRotor');
+                const rR = mesh.getObjectByName('rRotor');
+                if (lR) lR.rotation.y += 0.45;
+                if (rR) rR.rotation.y += 0.45;
+
+                // Pitch forward smoothly during movement
+                if (isMoving) {
+                    mesh.rotation.x = 0.22;
+                } else {
+                    mesh.rotation.x *= 0.9;
+                }
+            }
         } else {
-            mesh.position.y = 0;
+            // Ground Movement Animations
+            if (u.key === 'rifle') {
+                // Infantry Walking Strides & Bobbing
+                if (isMoving) {
+                    mesh.position.y = Math.abs(Math.sin(now * 0.016)) * 0.22;
+                    const stride = Math.sin(now * 0.016) * 0.55;
+                    mesh.traverse(child => {
+                        if (child.name === 'lLeg') child.rotation.x = stride;
+                        if (child.name === 'rLeg') child.rotation.x = -stride;
+                        if (child.name === 'lArm') child.rotation.x = -0.8 - stride * 0.3;
+                        if (child.name === 'rArm') child.rotation.x = -1.3 + stride * 0.3;
+                    });
+                } else {
+                    mesh.position.y = 0;
+                    mesh.traverse(child => {
+                        if (child.name === 'lLeg' || child.name === 'rLeg') child.rotation.x *= 0.8;
+                    });
+                }
+            } else if (u.key === 'buggy') {
+                // High-Speed Bounce & Wheel Rolling ONLY (Weapon stays fixed)
+                if (isMoving) {
+                    mesh.position.y = Math.abs(Math.sin(now * 0.028)) * 0.12;
+                    mesh.traverse(child => {
+                        if (child.name === 'wheel') {
+                            child.rotation.x += 0.3;
+                        }
+                    });
+                } else {
+                    mesh.position.y = 0;
+                }
+            } else if (u.key === 'tank' || u.key === 'missile') {
+                // Heavy Vehicle Chassis Rumble & Suspension
+                if (isMoving) {
+                    mesh.position.y = Math.sin(now * 0.02) * 0.06;
+                    mesh.rotation.x = Math.sin(now * 0.015) * 0.03;
+                } else {
+                    mesh.position.y = 0;
+                    mesh.rotation.x *= 0.8;
+                }
+            } else if (u.key === 'harv') {
+                // Industrial Harvester Saw Blades & Rumble
+                const isHarvesting = u.state === 'harvest';
+                if (isMoving || isHarvesting) {
+                    mesh.position.y = Math.sin(now * 0.018) * 0.05;
+                    mesh.traverse(child => {
+                        if (child.name === 'saw') {
+                            child.rotation.x += 0.35;
+                        }
+                    });
+                } else {
+                    mesh.position.y = 0;
+                }
+            }
         }
 
         // Recoil effect & Animations
@@ -1601,352 +1710,275 @@ function createUnitMesh(key, color) {
     group.add(ring);
 
     if (key === 'rifle') {
-        // Detailed Humanoid
-        const soldierGroup = new THREE.Group();
-        soldierGroup.scale.set(0.6, 0.6, 0.6); // Scale down slightly relative to vehicles
+        // 3-Man Tactical Rifle Squad Formation
+        const squadGroup = new THREE.Group();
+        const positions = [{x: -1.0, z: -0.6}, {x: 1.0, z: -0.6}, {x: 0, z: 0.8}];
 
-        // Legs (Articulated look)
-        const legGeo = new THREE.BoxGeometry(0.5, 1.8, 0.6);
-        const lLeg = new THREE.Mesh(legGeo, matGrey); lLeg.position.set(-0.6, 0.9, 0);
-        const rLeg = new THREE.Mesh(legGeo, matGrey); rLeg.position.set(0.6, 0.9, 0);
+        positions.forEach((pos, idx) => {
+            const soldier = new THREE.Group();
+            soldier.position.set(pos.x, 0, pos.z);
+            soldier.scale.set(0.5, 0.5, 0.5);
 
-        // Torso with armor vest
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 0.9), matBody);
-        torso.position.y = 2.7;
-        const vest = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.2, 1.0), matGrey);
-        vest.position.y = 3.0;
+            // Articulated Legs
+            const legGeo = new THREE.BoxGeometry(0.45, 1.6, 0.5);
+            const lLeg = new THREE.Mesh(legGeo, matGrey); lLeg.name = 'lLeg'; lLeg.position.set(-0.5, 0.8, 0);
+            const rLeg = new THREE.Mesh(legGeo, matGrey); rLeg.name = 'rLeg'; rLeg.position.set(0.5, 0.8, 0);
 
-        // Head with Helmet
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), MATS.skin);
-        head.position.y = 4.0;
-        const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 16, 0, Math.PI*2, 0, Math.PI/2), matGrey);
-        helmet.position.y = 4.1;
-        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.2), matBlack);
-        visor.position.set(0, 4.0, 0.6);
+            // Torso & Tactical Body Armor
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.6, 0.8), matBody); torso.position.y = 2.4;
+            const vest = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 0.9), matGrey); vest.position.y = 2.6;
+            const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.6), matBody); shoulderL.position.set(-1.0, 3.0, 0);
+            const shoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.6), matBody); shoulderR.position.set(1.0, 3.0, 0);
 
-        // Arms
-        const armGeo = new THREE.BoxGeometry(0.45, 1.5, 0.5);
-        const lArm = new THREE.Mesh(armGeo, matBody); lArm.position.set(-1.1, 3.2, 0); lArm.rotation.z = 0.2;
-        const rArm = new THREE.Mesh(armGeo, matBody); rArm.position.set(1.1, 3.2, 0.5); rArm.rotation.x = -1.2; // Holding gun
+            // Helmet & Glowing HUD Visor
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 12), MATS.skin); head.position.y = 3.6;
+            const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 12, 0, Math.PI*2, 0, Math.PI/2), matGrey); helmet.position.y = 3.7;
+            const visorMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const visor = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.25, 0.2), visorMat); visor.position.set(0, 3.6, 0.55);
 
-        // Gun (Rifle)
-        const gunGroup = new THREE.Group();
-        gunGroup.position.set(1.1, 2.8, 1.5);
-        gunGroup.rotation.y = -0.2;
+            // Arms holding rifle
+            const armGeo = new THREE.BoxGeometry(0.4, 1.3, 0.4);
+            const lArm = new THREE.Mesh(armGeo, matBody); lArm.name = 'lArm'; lArm.position.set(-1.0, 2.8, 0.2); lArm.rotation.x = -0.8;
+            const rArm = new THREE.Mesh(armGeo, matBody); rArm.name = 'rArm'; rArm.position.set(1.0, 2.8, 0.4); rArm.rotation.x = -1.3;
 
-        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.8), matBlack); stock.position.z = -0.4;
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.8), matGrey);
-        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.0), matBlack); barrel.rotation.x = Math.PI/2; barrel.position.z = 0.9;
-        const mag = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.25), matBlack); mag.position.set(0, -0.4, 0.2);
+            // Tactical Rifle
+            const rifleGroup = new THREE.Group();
+            rifleGroup.position.set(0.4, 2.6, 1.1);
+            const stock = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.7), matBlack); stock.position.z = -0.3;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.35, 0.7), matGrey);
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1), matBlack); barrel.rotation.x = Math.PI/2; barrel.position.z = 0.8;
+            const mag = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.2), matDark); mag.position.set(0, -0.3, 0.1);
+            rifleGroup.add(stock, body, barrel, mag);
 
-        gunGroup.add(stock, body, barrel, mag);
+            soldier.add(lLeg, rLeg, torso, vest, shoulderL, shoulderR, head, helmet, visor, lArm, rArm, rifleGroup);
+            squadGroup.add(soldier);
+        });
 
-        soldierGroup.add(lLeg, rLeg, torso, vest, head, helmet, visor, lArm, rArm, gunGroup);
-        group.add(soldierGroup);
+        group.add(squadGroup);
 
     } else if (key === 'missile') {
-        // Mobile Launcher - Detailed
-        // Heavy Truck Chassis
-        const chassis = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.0, 7.0), matBody);
-        chassis.position.y = 1.5;
+        // Heavy 6-Wheel Articulated Missile Truck
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.1, 7.2), matBody); chassis.position.y = 1.4;
+        const cab = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.6, 2.2), matBody); cab.position.set(0, 2.6, 2.3);
+        const windshield = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.9, 0.15), matGlass); windshield.position.set(0, 2.9, 3.4);
+        const grill = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.8, 0.2), matBlack); grill.position.set(0, 1.6, 3.5);
 
-        // Cab
-        const cab = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.5, 2.0), matBody);
-        cab.position.set(0, 2.5, 2.5);
-        const windshield = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.8, 0.1), matGlass);
-        windshield.position.set(0, 2.8, 3.5);
-
-        // 8 Wheels (Heavy)
-        const wheelGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.6, 32); wheelGeo.rotateZ(Math.PI/2);
-        for(let i=0; i<4; i++) {
-            const z = -2.5 + i*1.8;
-            const wL = new THREE.Mesh(wheelGeo, matBlack); wL.position.set(2.0, 0.8, z);
-            const wR = new THREE.Mesh(wheelGeo, matBlack); wR.position.set(-2.0, 0.8, z);
+        // 6 Heavy Offroad Wheels
+        const wheelGeo = new THREE.CylinderGeometry(0.85, 0.85, 0.7, 24); wheelGeo.rotateZ(Math.PI/2);
+        for(let i=0; i<3; i++) {
+            const z = -2.2 + i*2.2;
+            const wL = new THREE.Mesh(wheelGeo, matBlack); wL.position.set(2.1, 0.85, z);
+            const wR = new THREE.Mesh(wheelGeo, matBlack); wR.position.set(-2.1, 0.85, z);
             group.add(wL, wR);
         }
 
-        // Turret Base
-        const turret = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.5, 16), matGrey);
-        turret.position.set(0, 2.2, -1.0);
+        // Swivel Launcher Base
+        const launcherTurret = new THREE.Group();
+        launcherTurret.position.set(0, 2.2, -1.2);
+        const baseRing = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.6, 0.6, 24), matDark);
 
-        // Missile Rack (angled up)
-        const rackGroup = new THREE.Group();
-        rackGroup.position.set(0, 2.5, -1.0);
-        rackGroup.rotation.x = -Math.PI / 4; // Steeper angle
+        // Dual Tilted Missile Pods
+        const podGeo = new THREE.BoxGeometry(1.3, 1.3, 3.8);
+        const podL = new THREE.Mesh(podGeo, matGrey); podL.position.set(-1.1, 1.0, 0); podL.rotation.x = -0.38;
+        const podR = new THREE.Mesh(podGeo, matGrey); podR.position.set(1.1, 1.0, 0); podR.rotation.x = -0.38;
 
-        const rackBox = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.8, 3.5), matBody);
-        rackGroup.add(rackBox);
+        // Missile nose tips
+        const tipGeo = new THREE.ConeGeometry(0.22, 0.9, 16); tipGeo.rotateX(Math.PI/2);
+        for (let i = 0; i < 4; i++) {
+            const mx = ((i % 2) - 0.5) * 0.65;
+            const my = (Math.floor(i / 2) - 0.5) * 0.65;
+            const tipL = new THREE.Mesh(tipGeo, matSilver); tipL.position.set(mx, my, 1.9); podL.add(tipL);
+            const tipR = new THREE.Mesh(tipGeo, matSilver); tipR.position.set(mx, my, 1.9); podR.add(tipR);
+        }
 
-        // Side Supports
-        const suppL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, 2.0), matGrey); suppL.position.set(-1.5, 0, 0);
-        const suppR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, 2.0), matGrey); suppR.position.set(1.5, 0, 0);
-        rackGroup.add(suppL, suppR);
-
-        // Tubes (6 pack)
-        const tubeGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.2, 16);
-        const tubeMat = new THREE.MeshBasicMaterial({color:0x000000});
-        [[0.8, 0.4], [0, 0.4], [-0.8, 0.4], [0.8, -0.4], [0, -0.4], [-0.8, -0.4]].forEach(pos => {
-            const t = new THREE.Mesh(tubeGeo, tubeMat);
-            t.rotation.x = Math.PI/2;
-            t.position.set(pos[0], pos[1], 1.76);
-            rackGroup.add(t);
-        });
-
-        group.add(chassis, cab, windshield, turret, rackGroup);
+        launcherTurret.add(baseRing, podL, podR);
+        group.add(chassis, cab, windshield, grill, launcherTurret);
 
     } else if (key === 'buggy') {
-        // Detailed Fast Attack Buggy
+        // Cyber Buggy - Off-Road Assault Recon Vehicle
         const buggyGroup = new THREE.Group();
 
-        // Frame/Chassis
-        const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.8, 4.5), matBody);
-        chassis.position.y = 0.8;
+        // Chassis & Front Bull-Bar Bumper
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.9, 4.6), matBody); chassis.position.y = 1.1;
+        const bumper = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.4, 0.6), matBlack); bumper.position.set(0, 0.9, 2.4);
 
-        // Suspension Arms
-        const armGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.5); armGeo.rotateZ(Math.PI/2);
-        const fa = new THREE.Mesh(armGeo, matGrey); fa.position.set(0, 0.8, 1.8);
-        const ra = new THREE.Mesh(armGeo, matGrey); ra.position.set(0, 0.8, -1.8);
+        // Tubular Steel Roll Cage
+        const cageMat = matDark;
+        const barGeo = new THREE.CylinderGeometry(0.12, 0.12, 2.6);
+        const b1 = new THREE.Mesh(barGeo, cageMat); b1.position.set(-1.1, 2.1, 0.5); b1.rotation.x = 0.3;
+        const b2 = new THREE.Mesh(barGeo, cageMat); b2.position.set(1.1, 2.1, 0.5); b2.rotation.x = 0.3;
+        const b3 = new THREE.Mesh(barGeo, cageMat); b3.position.set(-1.1, 2.1, -1.0); b3.rotation.x = -0.3;
+        const b4 = new THREE.Mesh(barGeo, cageMat); b4.position.set(1.1, 2.1, -1.0); b4.rotation.x = -0.3;
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(2.3, 0.12, 1.9), matBody); roof.position.set(0, 3.1, -0.2);
+        const cageGroup = new THREE.Group(); cageGroup.add(b1, b2, b3, b4, roof);
 
-        // Roll Cage - built from tubes
-        const cageGroup = new THREE.Group();
-        const tubeV = new THREE.CylinderGeometry(0.1, 0.1, 1.8);
-        const tubeH = new THREE.CylinderGeometry(0.1, 0.1, 2.0); tubeH.rotateZ(Math.PI/2);
+        // Off-road Knobby Tires with Silver Rims
+        const wGeo = new THREE.CylinderGeometry(0.75, 0.75, 0.65, 20); wGeo.rotateZ(Math.PI/2);
+        const rimGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.68, 12); rimGeo.rotateZ(Math.PI/2);
 
-        const fl = new THREE.Mesh(tubeV, matGrey); fl.position.set(-1.0, 1.6, 1.0); fl.rotation.x = -0.4;
-        const fr = new THREE.Mesh(tubeV, matGrey); fr.position.set(1.0, 1.6, 1.0); fr.rotation.x = -0.4;
-        const rl = new THREE.Mesh(tubeV, matGrey); rl.position.set(-1.0, 1.6, -1.5);
-        const rr = new THREE.Mesh(tubeV, matGrey); rr.position.set(1.0, 1.6, -1.5);
-        const top = new THREE.Mesh(tubeH, matGrey); top.position.set(0, 2.4, -0.2);
-        const top2 = new THREE.Mesh(tubeH, matGrey); top2.position.set(0, 2.4, -1.5);
-        const sideL = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.5), matGrey); sideL.rotation.x=Math.PI/2; sideL.position.set(-1.0, 2.4, -0.8);
-        const sideR = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.5), matGrey); sideR.rotation.x=Math.PI/2; sideR.position.set(1.0, 2.4, -0.8);
-
-        cageGroup.add(fl, fr, rl, rr, top, top2, sideL, sideR);
-
-        // Big Offroad Wheels
-        const wGeo = new THREE.CylinderGeometry(1.2, 1.2, 0.8, 16);
-        wGeo.rotateZ(Math.PI/2);
-        const rimGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.85, 16); rimGeo.rotateZ(Math.PI/2);
-
+        const wheelPositions = [
+            {x: -1.65, z: 1.6}, {x: 1.65, z: 1.6},
+            {x: -1.65, z: -1.6}, {x: 1.65, z: -1.6}
+        ];
         const wheelGroup = new THREE.Group();
-        const positions = [[1.8, 0.8, 1.8], [-1.8, 0.8, 1.8], [1.8, 0.8, -1.8], [-1.8, 0.8, -1.8]];
-        positions.forEach(p => {
-            const w = new THREE.Mesh(wGeo, matBlack);
-            const r = new THREE.Mesh(rimGeo, matGrey);
-            const g = new THREE.Group(); g.position.set(...p);
-            g.add(w, r);
-            wheelGroup.add(g);
+        wheelPositions.forEach(p => {
+            const tire = new THREE.Mesh(wGeo, matBlack); tire.name = 'wheel'; tire.position.set(p.x, 0.75, p.z);
+            const rim = new THREE.Mesh(rimGeo, matSilver); rim.name = 'wheel'; rim.position.set(p.x, 0.75, p.z);
+            wheelGroup.add(tire, rim);
         });
 
-        // Machine Gun on top
-        const gunMount = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 0.8, 8), matGrey);
-        gunMount.position.set(0, 1.6, 0);
-        const gun = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 1.8), matBlack);
-        gun.position.set(0, 2.1, 0.4);
-        const shield = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.1), matBody);
-        shield.position.set(0, 2.1, 0.8);
+        // Twin Gatling Gun Top Turret
+        const gunMount = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.8, 12), matGrey); gunMount.position.set(0, 1.7, 0);
+        const gunBody = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 1.2), matBlack); gunBody.position.set(0, 2.2, 0.3);
+        const barrel1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.5, 12), matSilver); barrel1.rotation.x = Math.PI/2; barrel1.position.set(-0.25, 2.2, 1.3);
+        const barrel2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 1.5, 12), matSilver); barrel2.rotation.x = Math.PI/2; barrel2.position.set(0.25, 2.2, 1.3);
+        const shield = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.7, 0.12), matBody); shield.position.set(0, 2.2, 0.8);
 
-        buggyGroup.add(chassis, fa, ra, cageGroup, wheelGroup, gunMount, gun, shield);
+        buggyGroup.add(chassis, bumper, cageGroup, wheelGroup, gunMount, gunBody, barrel1, barrel2, shield);
         group.add(buggyGroup);
 
     } else if (key === 'tank') {
-        // Heavy Tank - Detailed
+        // Heavy Dual-Cannon Assault Tank (Mammoth-Class Inspiration)
         const chassisGroup = new THREE.Group();
 
-        // Detailed Treads with wheels
-        const treadGeo = new THREE.BoxGeometry(1.2, 1.5, 6.0);
-        const lTread = new THREE.Mesh(treadGeo, matBlack); lTread.position.set(-1.9, 0.75, 0);
-        const rTread = new THREE.Mesh(treadGeo, matBlack); rTread.position.set(1.9, 0.75, 0);
+        // Heavy Treads with Drive Sprockets & Armor Skirts
+        const treadGeo = new THREE.BoxGeometry(1.3, 1.6, 6.2);
+        const lTread = new THREE.Mesh(treadGeo, matBlack); lTread.position.set(-2.0, 0.8, 0);
+        const rTread = new THREE.Mesh(treadGeo, matBlack); rTread.position.set(2.0, 0.8, 0);
 
-        // Road wheels inside treads (visible on sides)
-        const wheelGeo = new THREE.CylinderGeometry(0.5, 0.5, 1.3, 16); wheelGeo.rotateZ(Math.PI/2);
+        // Road wheels inside treads
+        const wheelGeo = new THREE.CylinderGeometry(0.55, 0.55, 1.35, 16); wheelGeo.rotateZ(Math.PI/2);
         for(let i=0; i<5; i++) {
-            const z = -2 + i;
-            const wL = new THREE.Mesh(wheelGeo, matGrey); wL.position.set(-1.9, 0.5, z);
-            const wR = new THREE.Mesh(wheelGeo, matGrey); wR.position.set(1.9, 0.5, z);
+            const z = -2.1 + i * 1.05;
+            const wL = new THREE.Mesh(wheelGeo, matGrey); wL.position.set(-2.0, 0.55, z);
+            const wR = new THREE.Mesh(wheelGeo, matGrey); wR.position.set(2.0, 0.55, z);
             chassisGroup.add(wL, wR);
         }
 
-        // Hull with slope
-        const hull = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.2, 5.5), matBody);
-        hull.position.y = 1.2;
+        // Side Armor Skirts
+        const skirtL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.9, 5.8), matBody); skirtL.position.set(-2.7, 1.1, 0);
+        const skirtR = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.9, 5.8), matBody); skirtR.position.set(2.7, 1.1, 0);
 
-        // Armor plates
-        const plate = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.2, 2), matBody);
-        plate.position.set(0, 1.85, 1.5);
-        plate.rotation.x = -0.2; // Slope front
+        // Sloped Slotted Hull
+        const hull = new THREE.Mesh(new THREE.BoxGeometry(3.4, 1.3, 5.8), matBody); hull.position.y = 1.35;
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.25, 2.2), matBody); plate.position.set(0, 2.0, 1.6); plate.rotation.x = -0.22;
 
-        // Exhaust
-        const exhaust = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1, 8), matBlack);
-        exhaust.rotation.z = Math.PI/2;
-        exhaust.position.set(-1.5, 1.5, -2.5);
-        const exhaust2 = exhaust.clone(); exhaust2.position.set(1.5, 1.5, -2.5);
+        // Turret - Reinforced Heavy Armor Block
+        const turretGroup = new THREE.Group(); turretGroup.position.set(0, 2.2, 0);
+        const turretBase = new THREE.Mesh(new THREE.BoxGeometry(3.0, 1.3, 3.4), matBody); turretBase.position.y = 0.65;
 
-        // Turret - Complex shape
-        const turretGroup = new THREE.Group();
-        turretGroup.position.set(0, 2.0, 0);
+        // Commander Hatch & Radar Dish Antenna
+        const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.25, 16), matGrey); hatch.position.set(0.9, 1.45, -0.6);
+        const dish = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.1, 0.2, 16), matSilver); dish.position.set(-0.9, 1.7, -0.6); dish.rotation.x = 0.5;
 
-        const turretBase = new THREE.Mesh(new THREE.CylinderGeometry(1.8, 2.0, 1.2, 32), matBody);
-        const turretTop = new THREE.Mesh(new THREE.SphereGeometry(1.8, 32, 16, 0, Math.PI*2, 0, Math.PI/2), matBody); // Dome
-        turretTop.scale.set(1, 0.4, 1);
-        turretTop.position.y = 0.6;
+        // Twin Cannon Barrel Group (Recoil Animated)
+        const barrelGroup = new THREE.Group(); barrelGroup.name = 'barrel'; barrelGroup.position.set(0, 0.65, 1.7);
+        const mantlet = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.9, 1.0), matGrey); mantlet.position.z = 0;
 
-        // Commander Hatch
-        const hatch = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.2, 16), matGrey);
-        hatch.position.set(0.8, 1.0, -0.5);
+        const barrelGeo = new THREE.CylinderGeometry(0.24, 0.24, 4.8, 24); barrelGeo.rotateX(Math.PI/2);
+        const muzzleGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.7, 24); muzzleGeo.rotateX(Math.PI/2);
 
-        // Barrel Group (Recoil animated)
-        const barrelGroup = new THREE.Group();
-        barrelGroup.name = 'barrel';
-        barrelGroup.position.set(0, 0.2, 1.5); // Relative to turret center
+        const b1 = new THREE.Mesh(barrelGeo, matSilver); b1.position.set(-0.55, 0, 2.2);
+        const m1 = new THREE.Mesh(muzzleGeo, matBlack); m1.position.set(-0.55, 0, 4.5);
 
-        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 4.5, 32), matSilver);
-        barrel.rotation.x = Math.PI/2;
-        barrel.position.z = 2.0; // Extend out
+        const b2 = new THREE.Mesh(barrelGeo, matSilver); b2.position.set(0.55, 0, 2.2);
+        const m2 = new THREE.Mesh(muzzleGeo, matBlack); m2.position.set(0.55, 0, 4.5);
 
-        const mantlet = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.8, 1.0), matGrey);
-        mantlet.position.z = 0;
+        barrelGroup.add(mantlet, b1, m1, b2, m2);
 
-        const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32), matBlack);
-        muzzle.rotation.x = Math.PI/2;
-        muzzle.position.z = 4.2;
-
-        barrelGroup.add(barrel, mantlet, muzzle);
-
-        // Muzzle Flash
-        const flashGeo = new THREE.ConeGeometry(0.8, 3, 16);
-        flashGeo.rotateX(Math.PI/2);
-        flashGeo.translate(0, 0, 1.5);
-        const flash = new THREE.Mesh(flashGeo, new THREE.MeshBasicMaterial({color: 0xffff00}));
-        flash.name = 'flash';
-        flash.visible = false;
-        flash.position.set(0, 0, 4.5);
+        // Dual Muzzle Flashes
+        const flashGeo = new THREE.ConeGeometry(0.9, 3.2, 16); flashGeo.rotateX(Math.PI/2); flashGeo.translate(0, 0, 1.6);
+        const flashMat = new THREE.MeshBasicMaterial({color: 0xffff00});
+        const flash = new THREE.Mesh(flashGeo, flashMat); flash.name = 'flash'; flash.visible = false; flash.position.set(0, 0, 4.8);
         barrelGroup.add(flash);
 
-        turretGroup.add(turretBase, turretTop, hatch, barrelGroup);
-        chassisGroup.add(lTread, rTread, hull, plate, exhaust, exhaust2);
-
+        turretGroup.add(turretBase, hatch, dish, barrelGroup);
+        chassisGroup.add(lTread, rTread, skirtL, skirtR, hull, plate);
         group.add(chassisGroup, turretGroup);
 
     } else if (key === 'orca') {
-        // Detailed VTOL Gunship
-        const fuselage = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.8, 6.5), matBody);
-        fuselage.position.y = 2.0;
+        // Detailed Orca VTOL Gunship
+        const fuselage = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.9, 6.8), matBody); fuselage.position.y = 2.0;
 
-        // Nose Cone (Sensor suite)
-        const nose = new THREE.Mesh(new THREE.ConeGeometry(1.0, 2.0, 16), matBody);
-        nose.rotation.x = -Math.PI/2;
-        nose.position.set(0, 2.0, 4.0); // Front
+        // Aerodynamic Nose & Sensor Turret
+        const nose = new THREE.Mesh(new THREE.ConeGeometry(1.1, 2.2, 16), matBody); nose.rotation.x = -Math.PI/2; nose.position.set(0, 2.0, 4.3);
+        const chinTurret = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 12), matBlack); chinTurret.position.set(0, 1.2, 4.0);
 
-        // Cockpit canopy
-        const cockpit = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 2.5), matGlass);
-        cockpit.position.set(0, 2.6, 1.5);
+        // Glowing Blue Cockpit Canopy
+        const cockpit = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.1, 2.6), matGlass); cockpit.position.set(0, 2.7, 1.6);
 
-        // Tail boom
-        const tailBoom = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 4.0), matGrey);
-        tailBoom.position.set(0, 2.2, -4.5);
+        // Tail Boom & Dual Stabilizer Fins
+        const tailBoom = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.85, 4.2), matGrey); tailBoom.position.set(0, 2.3, -4.6);
+        const vStab = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 1.6), matGrey); vStab.position.set(0, 3.2, -6.2);
+        const hStab = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.2, 1.1), matGrey); hStab.position.set(0, 2.6, -6.2);
 
-        // Vertical Stabilizer
-        const vStab = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.0, 1.5), matGrey);
-        vStab.position.set(0, 3.0, -6.0);
-        // Horizontal Stabilizer
-        const hStab = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.2, 1.0), matGrey);
-        hStab.position.set(0, 2.5, -6.0);
+        // Forward-Swept Jet Engine Wing Pods
+        const podGeo = new THREE.BoxGeometry(1.6, 1.6, 2.6);
+        const lPod = new THREE.Mesh(podGeo, matGrey); lPod.position.set(-2.4, 2.0, 0.6);
+        const rPod = new THREE.Mesh(podGeo, matGrey); rPod.position.set(2.4, 2.0, 0.6);
 
-        // Engine/Weapon Pods (The "Wings")
-        const podGeo = new THREE.BoxGeometry(1.5, 1.5, 2.5);
-        const lPod = new THREE.Mesh(podGeo, matGrey); lPod.position.set(-2.2, 2.0, 0.5);
-        const rPod = new THREE.Mesh(podGeo, matGrey); rPod.position.set(2.2, 2.0, 0.5);
-
-        // Missile Tubes on Pods
-        const tubeGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.5, 8); tubeGeo.rotateX(Math.PI/2);
+        // Missile Tubes under Pods
+        const tubeGeo = new THREE.CylinderGeometry(0.16, 0.16, 0.6, 12); tubeGeo.rotateX(Math.PI/2);
         for(let i=0; i<4; i++) {
-             const mx = ((i%2)-0.5)*0.6;
-             const my = (Math.floor(i/2)-0.5)*0.6;
-             const tL = new THREE.Mesh(tubeGeo, matBlack); tL.position.set(mx, my, 1.3); lPod.add(tL);
-             const tR = new THREE.Mesh(tubeGeo, matBlack); tR.position.set(mx, my, 1.3); rPod.add(tR);
+             const mx = ((i%2)-0.5)*0.65; const my = (Math.floor(i/2)-0.5)*0.65;
+             const tL = new THREE.Mesh(tubeGeo, matBlack); tL.position.set(mx, my, 1.4); lPod.add(tL);
+             const tR = new THREE.Mesh(tubeGeo, matBlack); tR.position.set(mx, my, 1.4); rPod.add(tR);
         }
 
-        // Rotors - Detailed
-        const rotorHub = new THREE.CylinderGeometry(0.5, 0.5, 0.5, 16);
-        const bladeGeo = new THREE.BoxGeometry(7, 0.1, 0.6);
+        // Animated Dual VTOL Fan Rotors
+        const rotorHub = new THREE.CylinderGeometry(0.55, 0.55, 0.5, 16);
+        const bladeGeo = new THREE.BoxGeometry(7.2, 0.1, 0.65);
 
-        const lRotorGroup = new THREE.Group(); lRotorGroup.position.set(-2.2, 2.8, 0.5);
+        const lRotorGroup = new THREE.Group(); lRotorGroup.name = 'lRotor'; lRotorGroup.position.set(-2.4, 2.85, 0.6);
         lRotorGroup.add(new THREE.Mesh(rotorHub, matDark), new THREE.Mesh(bladeGeo, matBlack));
         const b2 = new THREE.Mesh(bladeGeo, matBlack); b2.rotation.y = Math.PI/2; lRotorGroup.add(b2);
 
-        const rRotorGroup = new THREE.Group(); rRotorGroup.position.set(2.2, 2.8, 0.5);
+        const rRotorGroup = new THREE.Group(); rRotorGroup.name = 'rRotor'; rRotorGroup.position.set(2.4, 2.85, 0.6);
         rRotorGroup.add(new THREE.Mesh(rotorHub, matDark), new THREE.Mesh(bladeGeo, matBlack));
         const b3 = new THREE.Mesh(bladeGeo, matBlack); b3.rotation.y = Math.PI/2; rRotorGroup.add(b3);
 
         // Landing Skids
-        const skidGeo = new THREE.BoxGeometry(0.2, 0.2, 5.0);
-        const lSkid = new THREE.Mesh(skidGeo, matDark); lSkid.position.set(-1.5, 0.5, 0);
-        const rSkid = new THREE.Mesh(skidGeo, matDark); rSkid.position.set(1.5, 0.5, 0);
-        // Struts
-        const strutGeo = new THREE.CylinderGeometry(0.1, 0.1, 1.5);
-        const ls1 = new THREE.Mesh(strutGeo, matGrey); ls1.position.set(-1.5, 1.2, 1.5);
-        const ls2 = new THREE.Mesh(strutGeo, matGrey); ls2.position.set(-1.5, 1.2, -1.5);
-        const rs1 = new THREE.Mesh(strutGeo, matGrey); rs1.position.set(1.5, 1.2, 1.5);
-        const rs2 = new THREE.Mesh(strutGeo, matGrey); rs2.position.set(1.5, 1.2, -1.5);
+        const skidGeo = new THREE.BoxGeometry(0.22, 0.22, 5.2);
+        const lSkid = new THREE.Mesh(skidGeo, matDark); lSkid.position.set(-1.6, 0.5, 0);
+        const rSkid = new THREE.Mesh(skidGeo, matDark); rSkid.position.set(1.6, 0.5, 0);
 
-        group.add(fuselage, nose, cockpit, tailBoom, vStab, hStab, lPod, rPod, lRotorGroup, rRotorGroup, lSkid, rSkid, ls1, ls2, rs1, rs2);
+        group.add(fuselage, nose, chinTurret, cockpit, tailBoom, vStab, hStab, lPod, rPod, lRotorGroup, rRotorGroup, lSkid, rSkid);
 
     } else if (key === 'harv') {
-        // Detailed Harvester
+        // Heavy Industrial Tiberium Harvester
         const harvGroup = new THREE.Group();
 
-        // Chassis Body
-        const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.8, 6.5), matBody);
-        body.position.y = 1.6;
+        // Heavy Reinforced Chassis
+        const body = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.9, 6.8), matBody); body.position.y = 1.7;
+        const cab = new THREE.Mesh(new THREE.BoxGeometry(3.6, 1.3, 2.1), matBody); cab.position.set(0, 3.1, 1.6);
+        const windowMesh = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.85, 0.2), matGlass); windowMesh.position.set(0, 3.2, 2.6);
 
-        // Cab Area
-        const cab = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.2, 2.0), matBody);
-        cab.position.set(0, 3.0, 1.5);
-        const windowMesh = new THREE.Mesh(new THREE.BoxGeometry(3.3, 0.8, 0.2), matGlass);
-        windowMesh.position.set(0, 3.1, 2.5);
+        // Heavy Track Treads
+        const treadGeo = new THREE.BoxGeometry(1.1, 1.9, 6.2);
+        const lTread = new THREE.Mesh(treadGeo, matBlack); lTread.position.set(-2.3, 0.95, 0);
+        const rTread = new THREE.Mesh(treadGeo, matBlack); rTread.position.set(2.3, 0.95, 0);
 
-        // Heavy Tracks
-        const treadGeo = new THREE.BoxGeometry(1.0, 1.8, 6.0);
-        const lTread = new THREE.Mesh(treadGeo, matBlack); lTread.position.set(-2.2, 0.9, 0);
-        const rTread = new THREE.Mesh(treadGeo, matBlack); rTread.position.set(2.2, 0.9, 0);
+        // Front Rotary Drill / Diamond Saw Collection Mechanism
+        const scoopGroup = new THREE.Group(); scoopGroup.position.set(0, 0.6, 4.0);
+        const bottom = new THREE.Mesh(new THREE.BoxGeometry(3.4, 0.25, 1.6), matGrey);
+        const left = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 1.6), matGrey); left.position.set(-1.6, 0.55, 0);
+        const right = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 1.6), matGrey); right.position.set(1.6, 0.55, 0);
 
-        // Wheels in tracks
-        const wGeo = new THREE.CylinderGeometry(0.6, 0.6, 1.1, 16); wGeo.rotateZ(Math.PI/2);
-        for(let i=0; i<4; i++) {
-            const z = -2 + i*1.3;
-            const wL = new THREE.Mesh(wGeo, matGrey); wL.position.set(-2.2, 0.6, z);
-            const wR = new THREE.Mesh(wGeo, matGrey); wR.position.set(2.2, 0.6, z);
-            harvGroup.add(wL, wR);
-        }
+        // Rotary Saw Blades
+        const sawGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.15, 16); sawGeo.rotateZ(Math.PI/2);
+        const saw1 = new THREE.Mesh(sawGeo, matSilver); saw1.name = 'saw'; saw1.position.set(-1.0, 0.4, 0.9);
+        const saw2 = new THREE.Mesh(sawGeo, matSilver); saw2.name = 'saw'; saw2.position.set(1.0, 0.4, 0.9);
+        scoopGroup.add(bottom, left, right, saw1, saw2);
 
-        // Collection Mechanism
-        const scoopGroup = new THREE.Group();
-        scoopGroup.position.set(0, 0.5, 3.8);
+        // Glowing Tiberium Crystal Storage Hopper Container
+        const container = new THREE.Mesh(new THREE.BoxGeometry(2.9, 1.1, 3.6), new THREE.MeshPhysicalMaterial({color:0x00ff66, transparent:true, opacity:0.8, emissive:0x00ff44, emissiveIntensity:0.8}));
+        container.position.set(0, 2.9, -1.1);
 
-        const bottom = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.2, 1.5), matGrey);
-        const left = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, 1.5), matGrey); left.position.set(-1.5, 0.5, 0);
-        const right = new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.0, 1.5), matGrey); right.position.set(1.5, 0.5, 0);
+        // Double Exhaust Stacks
+        const pipe1 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 2.0), matGrey); pipe1.position.set(1.3, 3.5, -2.8);
+        const pipe2 = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 2.0), matGrey); pipe2.position.set(-1.3, 3.5, -2.8);
 
-        // Teeth
-        const toothGeo = new THREE.ConeGeometry(0.1, 0.5, 4); toothGeo.rotateX(Math.PI/2);
-        for(let i=0; i<5; i++) {
-            const t = new THREE.Mesh(toothGeo, matSilver);
-            t.position.set(-1.2 + i*0.6, 0, 0.8);
-            scoopGroup.add(t);
-        }
-        scoopGroup.add(bottom, left, right);
-
-        // Crystal Container (Glows)
-        const container = new THREE.Mesh(new THREE.BoxGeometry(2.8, 1.0, 3.5), new THREE.MeshLambertMaterial({color:0x00ff66, opacity:0.6, transparent:true, emissive:0x004411}));
-        container.position.set(0, 2.8, -1.0);
-
-        // Pipes/Detail
-        const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 4.0), matGrey);
-        pipe.rotation.x = Math.PI/2;
-        pipe.position.set(1.2, 2.5, 0);
-
-        harvGroup.add(body, cab, windowMesh, lTread, rTread, scoopGroup, container, pipe);
+        harvGroup.add(body, cab, windowMesh, lTread, rTread, scoopGroup, container, pipe1, pipe2);
         group.add(harvGroup);
     }
 
@@ -2009,9 +2041,9 @@ function initJoinGame() { isAiVsAi=false; const id=document.getElementById('join
 function cancelLobby() { if(peer) peer.destroy(); document.getElementById('lobby-ui').classList.add('hidden'); document.getElementById('main-menu-panel').classList.remove('hidden'); }
 function setupNet() { conn.on('data', d => { if(isHost && d.t==='in') handleInput(null, null, d.x, d.y, -myPlayerId); if(isHost && d.t==='buy') buyUnit(d.k, -myPlayerId); if(!isHost) { if(d.t==='init') { GRID=d.g; myPlayerId=-d.h; startGameClient(); } if(d.type==='state') { units = d.u.map(x => { let n = new Unit(x.k, x.o, x.x, x.y); n.vx=x.vx; n.vy=x.vy; n.hp=x.h; n.state=x.s; n.recoil=x.r; n.attackAngle=x.aa; n.hoverOffset=x.ho; return n; }); projectiles = d.p; money = d.m2; enemyMoney = d.m1; bases = d.b; missileVal = d.v; if(d.nk && !mushroomCloud) { mushroomCloud = new MushroomCloud(d.nk.x, d.nk.y); SFX.nuke(); } } } }); }
 function startMP(host) { isMultiplayer=true; isHost=host; if(host) { generateMap(); conn.send({t:'init', g:GRID, h:myPlayerId}); startGame(); } }
-function startGame() { const strats=['rush','heavy','air','balanced']; aiStates['1']={ strategy: strats[Math.floor(Math.random()*4)], buildTarget: null }; aiStates['-1']={ strategy: strats[Math.floor(Math.random()*4)], buildTarget: null }; document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); gameActive=true; playMusic(); }
+function startGame() { const strats=['rush','heavy','air','balanced']; aiStates['1']={ strategy: strats[Math.floor(Math.random()*4)], buildTarget: null }; aiStates['-1']={ strategy: strats[Math.floor(Math.random()*4)], buildTarget: null }; document.getElementById('modal-start').classList.add('hidden'); document.getElementById('lobby-ui').classList.add('hidden'); money=CONFIG.startMoney; enemyMoney=CONFIG.startMoney; units=[]; projectiles=[]; debris=[]; missileVal=0; bases={p:2000,e:2000}; mushroomCloud=null; setupUIForSide(); updateHP(); SFX.init(); SFX.eva('Battle control online. Welcome back Commander.'); gameActive=true; playMusic(); }
 function startGameClient() { document.getElementById('modal-start').classList.add('hidden'); gameActive=true; setupUIForSide(); SFX.init(); createTerrain(); playMusic(); }
-function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], funds=p===1?money:enemyMoney; if(funds >= d.cost) { const rStart=p===1?CONFIG.gridRows-1:0; let placed=false; for(let r of [rStart, p===1?CONFIG.gridRows-2:1]) { for(let c=0; c<CONFIG.gridCols; c++) { if(!units.some(u=>Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u=new Unit(k, p, c, r); units.push(u); if(p===myPlayerId) { selectedUnit=u; spawnFlash=10; } placed=true; break; } } if(placed) break; } if(!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'explode'); } }
+function buyUnit(k, p) { if(!gameActive || isPaused) return; const d=DB[k], funds=p===1?money:enemyMoney; if(funds >= d.cost) { const rStart=p===1?CONFIG.gridRows-1:0; let placed=false; for(let r of [rStart, p===1?CONFIG.gridRows-2:1]) { for(let c=0; c<CONFIG.gridCols; c++) { if(!units.some(u=>Math.round(u.x)===c && Math.round(u.y)===r) && (GRID[r][c]!==1 || d.type==='air')) { if(p===1) money-=d.cost; else enemyMoney-=d.cost; const u=new Unit(k, p, c, r); units.push(u); if(p===myPlayerId) { selectedUnit=u; spawnFlash=10; SFX.eva('Unit ready.', 2500); } placed=true; break; } } if(placed) break; } if(!placed && p===myPlayerId) addParticles(Math.floor(CONFIG.gridCols/2), rStart, 10, 'explode'); } }
 
 function handleInput(e, _, nx, ny, netPlayer) {
     if (e) {
@@ -2094,7 +2126,7 @@ function handleInput(e, _, nx, ny, netPlayer) {
 function setupUIForSide() { const g=myPlayerId===1; document.getElementById('right-hp-label').innerText = g ? "ALLIED" : "BROTHERS"; document.getElementById('right-hp-label').style.color = g ? CONFIG.colors.p : CONFIG.colors.e; document.getElementById('left-hp-label').innerText = g ? "BROTHERS" : "ALLIED"; document.getElementById('left-hp-label').style.color = g ? CONFIG.colors.e : CONFIG.colors.p; }
 function updateHP() { const max=2000, g=myPlayerId===1, php=g?bases.p:bases.e, ehp=g?bases.e:bases.p; const rb=document.getElementById('right-hp').querySelector('.hp-bar-fill'); rb.style.width=`${(php/max)*100}%`; rb.style.backgroundColor=g?CONFIG.colors.p:CONFIG.colors.e; document.getElementById('right-hp').querySelector('.hp-bar-text').innerText=`${Math.round(php)}/${max}`; const lb=document.getElementById('left-hp').querySelector('.hp-bar-fill'); lb.style.width=`${(ehp/max)*100}%`; lb.style.backgroundColor=g?CONFIG.colors.e:CONFIG.colors.p; document.getElementById('left-hp').querySelector('.hp-bar-text').innerText=`${Math.round(ehp)}/${max}`; }
 function togglePause() { isPaused=!isPaused; document.getElementById('modal-pause').classList.toggle('hidden'); }
-function endGame(o) { if(!gameActive) return; gameActive=false; stopMusic(); document.getElementById('end-title').innerText = o; document.getElementById('modal-end').classList.remove('hidden'); }
+function endGame(o) { if(!gameActive) return; gameActive=false; stopMusic(); if (o.includes('VICTORY')) SFX.eva('Mission accomplished.'); else if (o.includes('DEFEAT')) SFX.eva('Mission failed.'); document.getElementById('end-title').innerText = o; document.getElementById('modal-end').classList.remove('hidden'); }
 
 // 3D Initialization
 function init3D() {
