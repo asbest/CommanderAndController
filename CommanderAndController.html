@@ -804,7 +804,7 @@ function updateFpsControls() {
     }
 
     const moveSpd = fpsUnit.spd * 1.5;
-    const rotSpd = 0.05;
+    const rotSpd = 0.025;
 
     // Keyboard rotation
     if (keysPressed['KeyA'] || keysPressed['ArrowLeft']) fpsYaw += rotSpd;
@@ -2132,7 +2132,7 @@ function init3D() {
                     touchControls.stickCurrY = touchControls.stickBaseY + clampedY;
                 } else if (touch.identifier === touchControls.lookTouchId) {
                     const dx = touch.clientX - touchControls.lookLastX;
-                    fpsYaw -= dx * 0.008; // Touch swipe horizontal look rotation
+                    fpsYaw -= dx * 0.004; // Touch swipe horizontal look rotation
                     touchControls.lookLastX = touch.clientX;
                     touchControls.lookLastY = touch.clientY;
                 }
