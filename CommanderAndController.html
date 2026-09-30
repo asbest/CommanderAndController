@@ -868,7 +868,11 @@ function updateFpsControls() {
 
     camera.up.set(0, 1, 0);
     camera.position.set(ux, uy, uz);
-    camera.lookAt(ux + Math.cos(fpsYaw) * 50, uy, uz + Math.sin(fpsYaw) * 50);
+    const lookDist = 50;
+    const lx = ux + Math.cos(fpsYaw) * Math.cos(fpsPitch) * lookDist;
+    const ly = uy + Math.sin(fpsPitch) * lookDist;
+    const lz = uz + Math.sin(fpsYaw) * Math.cos(fpsPitch) * lookDist;
+    camera.lookAt(lx, ly, lz);
 }
 
 function fireFpsWeapon() {
@@ -916,6 +920,7 @@ function enterFpsMode(unit) {
     isFpsMode = true;
     fpsUnit = unit;
     fpsYaw = unit.attackAngle ? (-unit.attackAngle + Math.PI/2) : -Math.PI/2;
+    fpsPitch = 0;
     document.getElementById('build-menu').style.display = 'none';
     updateFpsBtnUI();
 }
@@ -923,6 +928,7 @@ function enterFpsMode(unit) {
 function exitFpsMode() {
     isFpsMode = false;
     fpsUnit = null;
+    fpsPitch = 0;
     if (!isAiVsAi) document.getElementById('build-menu').style.display = 'flex';
     updateFpsBtnUI();
     onWindowResize(); // Restore top-down camera view
@@ -2108,7 +2114,10 @@ function init3D() {
                     touchControls.stickCurrY = touchControls.stickBaseY + clampedY;
                 } else if (touch.identifier === touchControls.lookTouchId) {
                     const dx = touch.clientX - touchControls.lookLastX;
+                    const dy = touch.clientY - touchControls.lookLastY;
                     fpsYaw -= dx * 0.004; // Touch swipe horizontal look rotation
+                    fpsPitch -= dy * 0.004; // Touch swipe vertical look rotation
+                    fpsPitch = Math.min(Math.max(fpsPitch, -Math.PI/3), Math.PI/3);
                     touchControls.lookLastX = touch.clientX;
                     touchControls.lookLastY = touch.clientY;
                 }
