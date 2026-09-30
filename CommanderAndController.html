@@ -857,16 +857,7 @@ function updateFpsControls() {
     }
 
     if (keysPressed['Space']) {
-        // Fire weapon forward
-        const targetPoint = {
-            isBase: false,
-            x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-            y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-            vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-            vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-            type: 'ground'
-        };
-        fpsUnit.attack(targetPoint);
+        fireFpsWeapon();
     }
 
     // Position 3D Camera for FPS (placed just in front of the vehicle)
@@ -878,6 +869,19 @@ function updateFpsControls() {
     camera.up.set(0, 1, 0);
     camera.position.set(ux, uy, uz);
     camera.lookAt(ux + Math.cos(fpsYaw) * 50, uy, uz + Math.sin(fpsYaw) * 50);
+}
+
+function fireFpsWeapon() {
+    if (!fpsUnit || fpsUnit.hp <= 0) return;
+    const targetPoint = {
+        isBase: false,
+        x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+        y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+        vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
+        vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
+        type: 'ground'
+    };
+    fpsUnit.attack(targetPoint);
 }
 
 function toggleFpsModeFromHeader() {
@@ -1944,31 +1948,13 @@ function handleInput(e, _, nx, ny, netPlayer) {
             // Check touch fire button
             if (fireBtnBounds && cx >= fireBtnBounds.x && cx <= fireBtnBounds.x + fireBtnBounds.w &&
                 cy >= fireBtnBounds.y && cy <= fireBtnBounds.y + fireBtnBounds.h) {
-                if (fpsUnit) {
-                    const targetPoint = {
-                        isBase: false,
-                        x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-                        y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-                        vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-                        vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-                        type: 'ground'
-                    };
-                    fpsUnit.attack(targetPoint);
-                }
+                fireFpsWeapon();
                 return;
             }
 
             // Left click / tap in FPS mode fires weapon
-            if (fpsUnit && !e.touches) {
-                const targetPoint = {
-                    isBase: false,
-                    x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-                    y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-                    vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-                    vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-                    type: 'ground'
-                };
-                fpsUnit.attack(targetPoint);
+            if (!e.touches) {
+                fireFpsWeapon();
             }
             return;
         }
@@ -2084,17 +2070,7 @@ function init3D() {
                 // Check Fire button
                 if (fireBtnBounds && tx >= fireBtnBounds.x && tx <= fireBtnBounds.x + fireBtnBounds.w &&
                     ty >= fireBtnBounds.y && ty <= fireBtnBounds.y + fireBtnBounds.h) {
-                    if (fpsUnit) {
-                        const targetPoint = {
-                            isBase: false,
-                            x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-                            y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-                            vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-                            vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-                            type: 'ground'
-                        };
-                        fpsUnit.attack(targetPoint);
-                    }
+                    fireFpsWeapon();
                     continue;
                 }
 
