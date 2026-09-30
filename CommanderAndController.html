@@ -1457,17 +1457,81 @@ function update3D() {
             mesh.rotation.y = -u.attackAngle + Math.PI/2;
         }
 
-        // Hover for air
+        const isMoving = u.state === 'move' && u.path.length > 0;
+        const now = Date.now();
+
+        // Hover & Air Flight Animations
         if (u.type === 'air') {
-            mesh.position.y = 4 + (u.hoverOffset||0) * 2;
+            const hoverBob = Math.sin(now * 0.004) * 0.35;
+            mesh.position.y = 4.0 + hoverBob;
+
             if (u.key === 'orca') {
                 const lR = mesh.getObjectByName('lRotor');
                 const rR = mesh.getObjectByName('rRotor');
-                if (lR) lR.rotation.y += 0.4;
-                if (rR) rR.rotation.y += 0.4;
+                if (lR) lR.rotation.y += 0.45;
+                if (rR) rR.rotation.y += 0.45;
+
+                // Pitch forward during movement
+                if (isMoving) {
+                    mesh.rotation.x = 0.28;
+                } else {
+                    mesh.rotation.x *= 0.9;
+                }
             }
         } else {
-            mesh.position.y = (u.state === 'move' && (u.key === 'rifle' || u.key === 'missile')) ? Math.abs(Math.sin(Date.now() * 0.012)) * 0.25 : 0;
+            // Ground Movement Animations
+            if (u.key === 'rifle') {
+                // Infantry Walking Strides & Bobbing
+                if (isMoving) {
+                    mesh.position.y = Math.abs(Math.sin(now * 0.016)) * 0.22;
+                    const stride = Math.sin(now * 0.016) * 0.55;
+                    mesh.traverse(child => {
+                        if (child.name === 'lLeg') child.rotation.x = stride;
+                        if (child.name === 'rLeg') child.rotation.x = -stride;
+                        if (child.name === 'lArm') child.rotation.x = -0.8 - stride * 0.3;
+                        if (child.name === 'rArm') child.rotation.x = -1.3 + stride * 0.3;
+                    });
+                } else {
+                    mesh.position.y = 0;
+                    mesh.traverse(child => {
+                        if (child.name === 'lLeg' || child.name === 'rLeg') child.rotation.x *= 0.8;
+                    });
+                }
+            } else if (u.key === 'buggy') {
+                // High-Speed Bounce & Wheel Rolling
+                if (isMoving) {
+                    mesh.position.y = Math.abs(Math.sin(now * 0.028)) * 0.12;
+                    mesh.traverse(child => {
+                        if (child.isMesh && child.geometry && child.geometry.type.includes('Cylinder')) {
+                            child.rotation.x += 0.3;
+                        }
+                    });
+                } else {
+                    mesh.position.y = 0;
+                }
+            } else if (u.key === 'tank' || u.key === 'missile') {
+                // Heavy Vehicle Chassis Rumble & Suspension
+                if (isMoving) {
+                    mesh.position.y = Math.sin(now * 0.02) * 0.06;
+                    mesh.rotation.x = Math.sin(now * 0.015) * 0.03;
+                } else {
+                    mesh.position.y = 0;
+                    mesh.rotation.x *= 0.8;
+                }
+            } else if (u.key === 'harv') {
+                // Industrial Harvester Saw Blades & Rumble
+                const isHarvesting = u.state === 'harvest';
+                if (isMoving || isHarvesting) {
+                    mesh.position.y = Math.sin(now * 0.018) * 0.05;
+                    mesh.traverse(child => {
+                        if (child.geometry && child.geometry.type.includes('Cylinder')) {
+                            child.rotation.x += 0.3;
+                        }
+                    });
+                } else {
+                    mesh.position.y = 0;
+                }
+            }
         }
 
         // Recoil effect & Animations
@@ -1646,48 +1710,51 @@ function createUnitMesh(key, color) {
     group.add(ring);
 
     if (key === 'rifle') {
-        // Detailed Humanoid
-        const soldierGroup = new THREE.Group();
-        soldierGroup.scale.set(0.6, 0.6, 0.6); // Scale down slightly relative to vehicles
+        // 3-Man Tactical Rifle Squad Formation
+        const squadGroup = new THREE.Group();
+        const positions = [{x: -1.0, z: -0.6}, {x: 1.0, z: -0.6}, {x: 0, z: 0.8}];
 
-        // Legs (Articulated look)
-        const legGeo = new THREE.BoxGeometry(0.5, 1.8, 0.6);
-        const lLeg = new THREE.Mesh(legGeo, matGrey); lLeg.position.set(-0.6, 0.9, 0);
-        const rLeg = new THREE.Mesh(legGeo, matGrey); rLeg.position.set(0.6, 0.9, 0);
+        positions.forEach((pos, idx) => {
+            const soldier = new THREE.Group();
+            soldier.position.set(pos.x, 0, pos.z);
+            soldier.scale.set(0.5, 0.5, 0.5);
 
-        // Torso with armor vest
-        const torso = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.8, 0.9), matBody);
-        torso.position.y = 2.7;
-        const vest = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.2, 1.0), matGrey);
-        vest.position.y = 3.0;
+            // Articulated Legs
+            const legGeo = new THREE.BoxGeometry(0.45, 1.6, 0.5);
+            const lLeg = new THREE.Mesh(legGeo, matGrey); lLeg.name = 'lLeg'; lLeg.position.set(-0.5, 0.8, 0);
+            const rLeg = new THREE.Mesh(legGeo, matGrey); rLeg.name = 'rLeg'; rLeg.position.set(0.5, 0.8, 0);
 
-        // Head with Helmet
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 16), MATS.skin);
-        head.position.y = 4.0;
-        const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.65, 16, 16, 0, Math.PI*2, 0, Math.PI/2), matGrey);
-        helmet.position.y = 4.1;
-        const visor = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.2), matBlack);
-        visor.position.set(0, 4.0, 0.6);
+            // Torso & Tactical Body Armor
+            const torso = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.6, 0.8), matBody); torso.position.y = 2.4;
+            const vest = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.2, 0.9), matGrey); vest.position.y = 2.6;
+            const shoulderL = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.6), matBody); shoulderL.position.set(-1.0, 3.0, 0);
+            const shoulderR = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.6), matBody); shoulderR.position.set(1.0, 3.0, 0);
 
-        // Arms
-        const armGeo = new THREE.BoxGeometry(0.45, 1.5, 0.5);
-        const lArm = new THREE.Mesh(armGeo, matBody); lArm.position.set(-1.1, 3.2, 0); lArm.rotation.z = 0.2;
-        const rArm = new THREE.Mesh(armGeo, matBody); rArm.position.set(1.1, 3.2, 0.5); rArm.rotation.x = -1.2; // Holding gun
+            // Helmet & Glowing HUD Visor
+            const head = new THREE.Mesh(new THREE.SphereGeometry(0.55, 12, 12), MATS.skin); head.position.y = 3.6;
+            const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.6, 12, 12, 0, Math.PI*2, 0, Math.PI/2), matGrey); helmet.position.y = 3.7;
+            const visorMat = new THREE.MeshBasicMaterial({ color: 0x00ffff });
+            const visor = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.25, 0.2), visorMat); visor.position.set(0, 3.6, 0.55);
 
-        // Gun (Rifle)
-        const gunGroup = new THREE.Group();
-        gunGroup.position.set(1.1, 2.8, 1.5);
-        gunGroup.rotation.y = -0.2;
+            // Arms holding rifle
+            const armGeo = new THREE.BoxGeometry(0.4, 1.3, 0.4);
+            const lArm = new THREE.Mesh(armGeo, matBody); lArm.name = 'lArm'; lArm.position.set(-1.0, 2.8, 0.2); lArm.rotation.x = -0.8;
+            const rArm = new THREE.Mesh(armGeo, matBody); rArm.name = 'rArm'; rArm.position.set(1.0, 2.8, 0.4); rArm.rotation.x = -1.3;
 
-        const stock = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.3, 0.8), matBlack); stock.position.z = -0.4;
-        const body = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.4, 0.8), matGrey);
-        const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.0), matBlack); barrel.rotation.x = Math.PI/2; barrel.position.z = 0.9;
-        const mag = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.6, 0.25), matBlack); mag.position.set(0, -0.4, 0.2);
+            // Tactical Rifle
+            const rifleGroup = new THREE.Group();
+            rifleGroup.position.set(0.4, 2.6, 1.1);
+            const stock = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.7), matBlack); stock.position.z = -0.3;
+            const body = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.35, 0.7), matGrey);
+            const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.1), matBlack); barrel.rotation.x = Math.PI/2; barrel.position.z = 0.8;
+            const mag = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.5, 0.2), matDark); mag.position.set(0, -0.3, 0.1);
+            rifleGroup.add(stock, body, barrel, mag);
 
-        gunGroup.add(stock, body, barrel, mag);
+            soldier.add(lLeg, rLeg, torso, vest, shoulderL, shoulderR, head, helmet, visor, lArm, rArm, rifleGroup);
+            squadGroup.add(soldier);
+        });
 
-        soldierGroup.add(lLeg, rLeg, torso, vest, head, helmet, visor, lArm, rArm, gunGroup);
-        group.add(soldierGroup);
+        group.add(squadGroup);
 
     } else if (key === 'missile') {
         // Heavy 6-Wheel Articulated Missile Truck
