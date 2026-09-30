@@ -823,27 +823,16 @@ function updateFpsControls() {
         moveDz += Math.sin(fpsYaw) * moveStep;
     }
 
-    // Touch joystick driving based on current camera angle (fpsYaw)
+    // Touch joystick driving (forward and backward only)
     if (touchControls.stickActive) {
         const maxR = 50;
-        const normX = (touchControls.stickCurrX - touchControls.stickBaseX) / maxR;
         const normY = (touchControls.stickCurrY - touchControls.stickBaseY) / maxR;
-        const mag = Math.min(Math.hypot(normX, normY), 1.0);
+        const stickFwd = -normY; // Positive = forward, Negative = backward
 
-        if (mag > 0.15) {
-            // Angle relative to current view: 0 = forward, PI/2 = right, PI = backward, -PI/2 = left
-            const relAngle = Math.atan2(normX, -normY);
-            const moveWorldAngle = fpsYaw + relAngle;
-
-            const moveStep = mag * moveSpd;
-            moveDx += Math.cos(moveWorldAngle) * moveStep;
-            moveDz += Math.sin(moveWorldAngle) * moveStep;
-
-            // Turn fpsYaw smoothly toward the direction of joystick movement
-            let angleDiff = moveWorldAngle - fpsYaw;
-            while (angleDiff > Math.PI) angleDiff -= Math.PI * 2;
-            while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
-            fpsYaw += angleDiff * 0.08;
+        if (Math.abs(stickFwd) > 0.1) {
+            const moveStep = Math.min(Math.max(stickFwd, -1), 1) * moveSpd;
+            moveDx += Math.cos(fpsYaw) * moveStep;
+            moveDz += Math.sin(fpsYaw) * moveStep;
         }
     }
 
@@ -2136,17 +2125,11 @@ function init3D() {
             for (let i = 0; i < e.changedTouches.length; i++) {
                 const touch = e.changedTouches[i];
                 if (touch.identifier === touchControls.stickTouchId) {
-                    const dx = touch.clientX - touchControls.stickBaseX;
                     const dy = touch.clientY - touchControls.stickBaseY;
-                    const dist = Math.hypot(dx, dy);
                     const maxR = 50;
-                    if (dist > maxR) {
-                        touchControls.stickCurrX = touchControls.stickBaseX + (dx / dist) * maxR;
-                        touchControls.stickCurrY = touchControls.stickBaseY + (dy / dist) * maxR;
-                    } else {
-                        touchControls.stickCurrX = touch.clientX;
-                        touchControls.stickCurrY = touch.clientY;
-                    }
+                    const clampedY = Math.min(Math.max(dy, -maxR), maxR);
+                    touchControls.stickCurrX = touchControls.stickBaseX; // Lock X axis
+                    touchControls.stickCurrY = touchControls.stickBaseY + clampedY;
                 } else if (touch.identifier === touchControls.lookTouchId) {
                     const dx = touch.clientX - touchControls.lookLastX;
                     fpsYaw -= dx * 0.008; // Touch swipe horizontal look rotation
