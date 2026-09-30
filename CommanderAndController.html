@@ -1460,10 +1460,10 @@ function update3D() {
         const isMoving = u.state === 'move' && u.path.length > 0;
         const now = Date.now();
 
-        // Hover & Air Flight Animations
+        // Hover & High-Altitude Flight Animations (Flies above all mountain obstacles)
         if (u.type === 'air') {
             const hoverBob = Math.sin(now * 0.004) * 0.35;
-            mesh.position.y = 4.0 + hoverBob;
+            mesh.position.y = 8.5 + hoverBob;
 
             if (u.key === 'orca') {
                 const lR = mesh.getObjectByName('lRotor');
@@ -1471,9 +1471,9 @@ function update3D() {
                 if (lR) lR.rotation.y += 0.45;
                 if (rR) rR.rotation.y += 0.45;
 
-                // Pitch forward during movement
+                // Pitch forward smoothly during movement
                 if (isMoving) {
-                    mesh.rotation.x = 0.28;
+                    mesh.rotation.x = 0.22;
                 } else {
                     mesh.rotation.x *= 0.9;
                 }
