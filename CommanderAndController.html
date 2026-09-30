@@ -605,17 +605,17 @@ function createTerrain() {
             const x = c * TILE_SIZE_3D + TILE_SIZE_3D / 2;
             const z = r * TILE_SIZE_3D + TILE_SIZE_3D / 2;
 
-            if (t === 1) { // Mountains (Realistic Rocky Crag)
+        if (t === 1) { // Mountains (Capped Terrain Crag)
                 const rockGroup = new THREE.Group();
                 const count = 3 + Math.floor(Math.random()*2);
                 const rockMat = new THREE.MeshStandardMaterial({ color: 0x2d3436, roughness: 0.9, metalness: 0.1, flatShading: true });
                 for (let i = 0; i < count; i++) {
-                    const radius = 2.5 + Math.random() * 2.5;
+                    const radius = 2.0 + Math.random() * 1.5;
                     const geo = new THREE.DodecahedronGeometry(radius, 1);
                     const mesh = new THREE.Mesh(geo, rockMat);
-                    mesh.position.set((Math.random()-0.5)*3, radius*0.7, (Math.random()-0.5)*3);
+                    mesh.position.set((Math.random()-0.5)*2.5, radius*0.4, (Math.random()-0.5)*2.5);
                     mesh.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
-                    mesh.scale.set(1 + Math.random()*0.4, 1.2 + Math.random()*0.8, 1 + Math.random()*0.4);
+                    mesh.scale.set(1 + Math.random()*0.3, 0.9 + Math.random()*0.3, 1 + Math.random()*0.3);
                     mesh.castShadow = true; mesh.receiveShadow = true;
                     rockGroup.add(mesh);
                 }
@@ -904,7 +904,7 @@ function updateFpsControls() {
     // Position 3D Camera for FPS (placed just in front of the vehicle)
     const offset = 3.5;
     const ux = fpsUnit.vx * TILE_SIZE_3D + TILE_SIZE_3D/2 + Math.cos(fpsYaw) * offset;
-    const uy = fpsUnit.type === 'air' ? 8 : 2.8;
+    const uy = fpsUnit.type === 'air' ? 20.5 : 2.8;
     const uz = fpsUnit.vy * TILE_SIZE_3D + TILE_SIZE_3D/2 + Math.sin(fpsYaw) * offset;
 
     camera.up.set(0, 1, 0);
@@ -1460,10 +1460,10 @@ function update3D() {
         const isMoving = u.state === 'move' && u.path.length > 0;
         const now = Date.now();
 
-        // Hover & High-Altitude Flight Animations (Flies above all mountain obstacles)
+        // Hover & High-Altitude Flight Animations (Flies far above all mountain obstacles)
         if (u.type === 'air') {
             const hoverBob = Math.sin(now * 0.004) * 0.35;
-            mesh.position.y = 8.5 + hoverBob;
+            mesh.position.y = 18.0 + hoverBob;
 
             if (u.key === 'orca') {
                 const lR = mesh.getObjectByName('lRotor');
@@ -1498,11 +1498,11 @@ function update3D() {
                     });
                 }
             } else if (u.key === 'buggy') {
-                // High-Speed Bounce & Wheel Rolling
+                // High-Speed Bounce & Wheel Rolling ONLY (Weapon stays fixed)
                 if (isMoving) {
                     mesh.position.y = Math.abs(Math.sin(now * 0.028)) * 0.12;
                     mesh.traverse(child => {
-                        if (child.isMesh && child.geometry && child.geometry.type.includes('Cylinder')) {
+                        if (child.name === 'wheel') {
                             child.rotation.x += 0.3;
                         }
                     });
@@ -1524,8 +1524,8 @@ function update3D() {
                 if (isMoving || isHarvesting) {
                     mesh.position.y = Math.sin(now * 0.018) * 0.05;
                     mesh.traverse(child => {
-                        if (child.geometry && child.geometry.type.includes('Cylinder')) {
-                            child.rotation.x += 0.3;
+                        if (child.name === 'saw') {
+                            child.rotation.x += 0.35;
                         }
                     });
                 } else {
@@ -1822,8 +1822,8 @@ function createUnitMesh(key, color) {
         ];
         const wheelGroup = new THREE.Group();
         wheelPositions.forEach(p => {
-            const tire = new THREE.Mesh(wGeo, matBlack); tire.position.set(p.x, 0.75, p.z);
-            const rim = new THREE.Mesh(rimGeo, matSilver); rim.position.set(p.x, 0.75, p.z);
+            const tire = new THREE.Mesh(wGeo, matBlack); tire.name = 'wheel'; tire.position.set(p.x, 0.75, p.z);
+            const rim = new THREE.Mesh(rimGeo, matSilver); rim.name = 'wheel'; rim.position.set(p.x, 0.75, p.z);
             wheelGroup.add(tire, rim);
         });
 
@@ -1966,8 +1966,8 @@ function createUnitMesh(key, color) {
 
         // Rotary Saw Blades
         const sawGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.15, 16); sawGeo.rotateZ(Math.PI/2);
-        const saw1 = new THREE.Mesh(sawGeo, matSilver); saw1.position.set(-1.0, 0.4, 0.9);
-        const saw2 = new THREE.Mesh(sawGeo, matSilver); saw2.position.set(1.0, 0.4, 0.9);
+        const saw1 = new THREE.Mesh(sawGeo, matSilver); saw1.name = 'saw'; saw1.position.set(-1.0, 0.4, 0.9);
+        const saw2 = new THREE.Mesh(sawGeo, matSilver); saw2.name = 'saw'; saw2.position.set(1.0, 0.4, 0.9);
         scoopGroup.add(bottom, left, right, saw1, saw2);
 
         // Glowing Tiberium Crystal Storage Hopper Container
