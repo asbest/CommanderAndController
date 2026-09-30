@@ -264,7 +264,7 @@ const DB = {
     missile: { n:'Missile Squad', cost:100, hp:85, dmg:45, spd:0.007, rng:3.5, cd:80, icon:'🚀', type:'infantry', proj:'missile', scale: 0.35, mods: { infantry: 0.4, vehicle: 2.2, air: 4.5, building: 2.0 } },
     buggy: { n:'Cyber Buggy', cost:150, hp:140, dmg:16, spd:0.013, rng:1.0, cd:15, icon:'🚙', type:'vehicle', proj:'bullet', scale: 0.35, mods: { infantry: 3.5, vehicle: 0.3, air: 2.0, building: 0.5 } },
     tank: { n:'Storm Tank', cost:250, hp:400, dmg:70, spd:0.0055, rng:1.0, cd:90, icon:'🛡️', type:'vehicle', proj:'bullet', scale: 0.45, mods: { infantry: 0.2, vehicle: 1.8, air: 0.0, building: 1.5 } },
-    orca: { n:'Gunship', cost:350, hp:150, dmg:65, spd:0.011, rng:2.5, cd:100, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 3.0, missile: 0.1, air: 1.0, building: 2.5 } },
+    orca: { n:'Gunship', cost:350, hp:150, dmg:65, spd:0.011, rng:2.0, cd:100, icon:'✈️', type:'air', proj:'missile', scale: 0.4, mods: { infantry: 0.5, vehicle: 3.0, missile: 0.1, air: 1.0, building: 2.5 } },
     harv: { n:'Harvester', cost:200, hp:450, dmg:0, spd:0.004, rng:0, cd:0, icon:'🚜', type:'vehicle', harvest:true, proj:'none', scale: 0.4, mods: {} }
 };
 
@@ -2190,7 +2190,7 @@ function init3D() {
                 } else if (touch.identifier === touchControls.lookTouchId) {
                     const dx = touch.clientX - touchControls.lookLastX;
                     const dy = touch.clientY - touchControls.lookLastY;
-                    fpsYaw -= dx * 0.004; // Touch swipe horizontal look rotation
+                    fpsYaw += dx * 0.004; // Touch swipe horizontal look rotation (inverted)
                     fpsPitch -= dy * 0.004; // Touch swipe vertical look rotation
                     fpsPitch = Math.min(Math.max(fpsPitch, -Math.PI/3), Math.PI/3);
                     touchControls.lookLastX = touch.clientX;
