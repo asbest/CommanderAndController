@@ -432,14 +432,15 @@ class Unit {
         let m = (t.key && this.mods[t.key] !== undefined) ? this.mods[t.key] : (this.mods[t.type] || 1);
         const targetX = (t.vx !== undefined) ? t.vx : (t.x !== undefined ? t.x : this.x + Math.cos(this.attackAngle)*this.rng);
         const targetY = (t.vy !== undefined) ? t.vy : (t.y !== undefined ? t.y : this.y + Math.sin(this.attackAngle)*this.rng);
+        const maxDist = (t.isBase || t.key) ? Math.hypot(targetX - this.vx, targetY - this.vy) : this.rng;
         if (this.proj === 'missile') {
             SFX.launch();
             addParticles(this.vx, this.vy, 5, 'flash');
-            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: targetX, ty: targetY, dmg: this.dmg * m, o: this.owner, s: 0.1, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this, trailTimer: 0 });
+            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, ox: this.vx, oy: this.vy, maxDist: maxDist, tar: t, tx: targetX, ty: targetY, dmg: this.dmg * m, o: this.owner, s: 0.1, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this, trailTimer: 0 });
         } else {
             if (this.key === 'tank') SFX.tank(); else SFX.shoot();
             addParticles(this.vx + Math.cos(this.attackAngle)*0.4, this.vy + Math.sin(this.attackAngle)*0.4, 3, 'flash');
-            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, tx: targetX, ty: targetY, dmg: this.dmg * m, o: this.owner, s: 0.2, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
+            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, ox: this.vx, oy: this.vy, maxDist: maxDist, tar: t, tx: targetX, ty: targetY, dmg: this.dmg * m, o: this.owner, s: 0.2, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
         }
     }
     takeDamage(a, attacker) { 
@@ -880,9 +881,9 @@ function updateFpsControls() {
 function fireFpsWeapon() {
     if (!fpsUnit || fpsUnit.hp <= 0) return;
     let bestTarget = null;
-    let minDist = fpsUnit.rng * 2.5;
+    let minDist = fpsUnit.rng;
 
-    // Search for enemy units in view cone
+    // Search for enemy units in view cone within fpsUnit.rng
     units.forEach(u => {
         if (u.owner !== fpsUnit.owner && u.hp > 0) {
             const dx = u.vx - fpsUnit.vx;
@@ -919,7 +920,7 @@ function fireFpsWeapon() {
     }
 
     if (!bestTarget) {
-        const fireRng = Math.max(fpsUnit.rng, 8);
+        const fireRng = fpsUnit.rng;
         bestTarget = {
             isBase: false,
             x: fpsUnit.x + Math.cos(fpsYaw) * fireRng,
@@ -1099,6 +1100,16 @@ function loop(ts) {
                         p.x += (p.tx - p.x) / d * p.s;
                         p.y += (p.ty - p.y) / d * p.s;
                         p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+
+                        // Check maximum flight distance limit
+                        if (p.ox !== undefined && p.oy !== undefined && p.maxDist !== undefined) {
+                            if (Math.hypot(p.x - p.ox, p.y - p.oy) >= p.maxDist) {
+                                if (p.t === 'missile') SFX.explode();
+                                addParticles(p.x, p.y, 3, p.t === 'missile' ? 'explode' : 'spark');
+                                return false;
+                            }
+                        }
+
                         if (p.t === 'missile') {
                             p.trailTimer = (p.trailTimer || 0) + 1;
                             if (p.trailTimer % 3 === 0) addParticles(p.x, p.y, 1, 'smoke');
