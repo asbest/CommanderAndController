@@ -428,16 +428,18 @@ class Unit {
         if (this.cd > 0) return;
         this.cd = this.cdMax;
         this.recoil = 5;
-        this.attackAngle = Math.atan2(t.y - this.y, t.x - this.x);
-        let m = (this.mods[t.key] !== undefined) ? this.mods[t.key] : (this.mods[t.type] || 1);
+        this.attackAngle = Math.atan2((t.vy !== undefined ? t.vy : t.y) - this.y, (t.vx !== undefined ? t.vx : t.x) - this.x);
+        let m = (t.key && this.mods[t.key] !== undefined) ? this.mods[t.key] : (this.mods[t.type] || 1);
+        const targetX = (t.vx !== undefined) ? t.vx : (t.x !== undefined ? t.x : this.x + Math.cos(this.attackAngle)*this.rng);
+        const targetY = (t.vy !== undefined) ? t.vy : (t.y !== undefined ? t.y : this.y + Math.sin(this.attackAngle)*this.rng);
         if (this.proj === 'missile') {
             SFX.launch();
             addParticles(this.vx, this.vy, 5, 'flash');
-            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: t.vx, ty: t.vy, dmg: this.dmg * m, o: this.owner, s: 0.04, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this, trailTimer: 0 });
+            projectiles.push({ t: 'missile', x: this.vx, y: this.vy, tar: t, tx: targetX, ty: targetY, dmg: this.dmg * m, o: this.owner, s: 0.1, c: this.owner === 1 ? '#ff0' : '#fa0', attacker: this, trailTimer: 0 });
         } else {
             if (this.key === 'tank') SFX.tank(); else SFX.shoot();
             addParticles(this.vx + Math.cos(this.attackAngle)*0.4, this.vy + Math.sin(this.attackAngle)*0.4, 3, 'flash');
-            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, dmg: this.dmg * m, o: this.owner, s: 0.15, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
+            projectiles.push({ t: 'bullet', x: this.vx, y: this.vy, tar: t, tx: targetX, ty: targetY, dmg: this.dmg * m, o: this.owner, s: 0.2, c: this.owner === 1 ? '#0f0' : '#f00', attacker: this });
         }
     }
     takeDamage(a, attacker) { 
@@ -877,15 +879,58 @@ function updateFpsControls() {
 
 function fireFpsWeapon() {
     if (!fpsUnit || fpsUnit.hp <= 0) return;
-    const targetPoint = {
-        isBase: false,
-        x: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-        y: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-        vx: fpsUnit.x + Math.cos(fpsYaw) * fpsUnit.rng,
-        vy: fpsUnit.y + Math.sin(fpsYaw) * fpsUnit.rng,
-        type: 'ground'
-    };
-    fpsUnit.attack(targetPoint);
+    let bestTarget = null;
+    let minDist = fpsUnit.rng * 2.5;
+
+    // Search for enemy units in view cone
+    units.forEach(u => {
+        if (u.owner !== fpsUnit.owner && u.hp > 0) {
+            const dx = u.vx - fpsUnit.vx;
+            const dy = u.vy - fpsUnit.vy;
+            const dist = Math.hypot(dx, dy);
+            if (dist <= minDist) {
+                const angleToUnit = Math.atan2(dy, dx);
+                let diff = angleToUnit - fpsYaw;
+                while (diff < -Math.PI) diff += Math.PI * 2;
+                while (diff > Math.PI) diff -= Math.PI * 2;
+                if (Math.abs(diff) < 0.5) { // Aim cone ~30 deg
+                    minDist = dist;
+                    bestTarget = u;
+                }
+            }
+        }
+    });
+
+    // Search for enemy base in view cone if no unit matched
+    if (!bestTarget) {
+        const eb = baseCoordinates[fpsUnit.owner * -1];
+        const dx = eb.x - fpsUnit.vx;
+        const dy = eb.y - fpsUnit.vy;
+        const dist = Math.hypot(dx, dy);
+        if (dist <= minDist) {
+            const angleToBase = Math.atan2(dy, dx);
+            let diff = angleToBase - fpsYaw;
+            while (diff < -Math.PI) diff += Math.PI * 2;
+            while (diff > Math.PI) diff -= Math.PI * 2;
+            if (Math.abs(diff) < 0.5) {
+                bestTarget = { isBase: true, x: eb.x, y: eb.y, vx: eb.x, vy: eb.y, owner: fpsUnit.owner * -1, type: 'building' };
+            }
+        }
+    }
+
+    if (!bestTarget) {
+        const fireRng = Math.max(fpsUnit.rng, 8);
+        bestTarget = {
+            isBase: false,
+            x: fpsUnit.x + Math.cos(fpsYaw) * fireRng,
+            y: fpsUnit.y + Math.sin(fpsYaw) * fireRng,
+            vx: fpsUnit.vx + Math.cos(fpsYaw) * fireRng,
+            vy: fpsUnit.vy + Math.sin(fpsYaw) * fireRng,
+            type: 'ground'
+        };
+    }
+
+    fpsUnit.attack(bestTarget);
 }
 
 function toggleFpsModeFromHeader() {
@@ -1015,19 +1060,49 @@ function loop(ts) {
                         return true;
                     }
                     const targetAlive = p.tar && (p.tar.isBase || units.includes(p.tar));
-                    if (p.t === 'missile') {
-                        if (targetAlive) { p.tx = p.tar.vx; p.ty = p.tar.vy; }
+                    if (p.t === 'missile' || p.t === 'bullet') {
+                        if (targetAlive) { p.tx = (p.tar.vx !== undefined ? p.tar.vx : p.tar.x); p.ty = (p.tar.vy !== undefined ? p.tar.vy : p.tar.y); }
                         const d = Math.hypot(p.tx - p.x, p.ty - p.y);
-                        if (d < p.s) { if (targetAlive) { if (p.tar.isBase) { const k = p.o===1?'e':'p'; bases[k] = Math.max(0, bases[k]-p.dmg); updateHP(); } else p.tar.takeDamage(p.dmg, p.attacker); } SFX.explode(); addParticles(p.x, p.y, 5, 'explode'); return false; }
-                        p.x += (p.tx - p.x) / d * p.s; p.y += (p.ty - p.y) / d * p.s; p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
-                        p.trailTimer++; if(p.trailTimer%3===0) addParticles(p.x, p.y, 1, 'smoke');
-                        return true;
-                    }
-                    if (p.t === 'bullet') {
-                        if (!targetAlive) return false;
-                        const tx = p.tar.vx, ty = p.tar.vy, d = Math.hypot(tx - p.x, ty - p.y);
-                        if (d < p.s) { if (targetAlive) { if (p.tar.isBase) { const k = p.o===1?'e':'p'; bases[k] = Math.max(0, bases[k]-p.dmg); updateHP(); } else p.tar.takeDamage(p.dmg, p.attacker); } return false; }
-                        p.x += (tx - p.x) / d * p.s; p.y += (ty - p.y) / d * p.s; p.angle = Math.atan2(ty - p.y, tx - p.x);
+
+                        // Proximity hit detection against any enemy unit
+                        let hitUnit = null;
+                        for (let u of units) {
+                            if (u.owner !== p.o && u.hp > 0 && Math.hypot(u.vx - p.x, u.vy - p.y) < 0.8) {
+                                hitUnit = u;
+                                break;
+                            }
+                        }
+
+                        if (hitUnit) {
+                            let m = (p.attacker && hitUnit.key && p.attacker.mods[hitUnit.key] !== undefined) ? p.attacker.mods[hitUnit.key] : ((p.attacker && p.attacker.mods[hitUnit.type]) || 1);
+                            hitUnit.takeDamage((p.dmg || 15) * m, p.attacker);
+                            if (p.t === 'missile') SFX.explode();
+                            addParticles(p.x, p.y, 4, p.t === 'missile' ? 'explode' : 'spark');
+                            return false;
+                        }
+
+                        if (d < p.s || d < 0.1) {
+                            if (targetAlive) {
+                                if (p.tar.isBase) {
+                                    const k = p.o === 1 ? 'e' : 'p';
+                                    bases[k] = Math.max(0, bases[k] - (p.dmg || 15));
+                                    updateHP();
+                                } else {
+                                    p.tar.takeDamage(p.dmg || 15, p.attacker);
+                                }
+                            }
+                            if (p.t === 'missile') SFX.explode();
+                            addParticles(p.x, p.y, 4, p.t === 'missile' ? 'explode' : 'spark');
+                            return false;
+                        }
+
+                        p.x += (p.tx - p.x) / d * p.s;
+                        p.y += (p.ty - p.y) / d * p.s;
+                        p.angle = Math.atan2(p.ty - p.y, p.tx - p.x);
+                        if (p.t === 'missile') {
+                            p.trailTimer = (p.trailTimer || 0) + 1;
+                            if (p.trailTimer % 3 === 0) addParticles(p.x, p.y, 1, 'smoke');
+                        }
                         return true;
                     }
                     return false;
